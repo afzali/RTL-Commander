@@ -1,3 +1,261 @@
+/**
+ * RTL-LTR Controller Panel Styles
+ */
+
+/* Panel Container */
+#rtl-ltr-advanced-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+    z-index: 999999;
+    display: none;
+    min-width: 420px;
+    max-width: 90vw;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    animation: panelFadeIn 0.2s ease-out;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Panel Header */
+.panel-header {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eaeaea;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.panel-header::before {
+    content: "⇄";
+    font-size: 20px;
+    color: #4285f4;
+}
+
+/* Panel Content */
+.panel-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Input Groups */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.input-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #4a4a4a;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #dcdcdc;
+    border-radius: 8px;
+    font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #333;
+    transition: all 0.2s ease;
+}
+
+.input-group input:hover {
+    border-color: #b3b3b3;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #4285f4;
+    box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
+}
+
+.input-group .hint {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+
+/* Domain Info */
+.domain-info {
+    margin-top: 4px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #eaeaea;
+}
+
+.domain-info small {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.4;
+    color: #5f6368;
+}
+
+.domain-info small::before {
+    content: "🌐";
+    font-size: 14px;
+}
+
+/* Buttons */
+.button-group {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.button-group button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+#apply-toggle {
+    background: #4285f4;
+    color: white;
+}
+
+#apply-toggle:hover {
+    background: #3367d6;
+    box-shadow: 0 2px 6px rgba(66, 133, 244, 0.2);
+}
+
+#cancel-toggle {
+    background: #f1f3f4;
+    color: #3c4043;
+}
+
+#cancel-toggle:hover {
+    background: #e8eaed;
+}
+
+/* Notification */
+.rtl-ltr-notification {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #323232;
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: notificationSlideIn 0.3s ease-out;
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rtl-ltr-notification::before {
+    content: "✓";
+    font-size: 16px;
+    color: #8ab4f8;
+}
+
+/* Element Direction Styles */
+[dir="rtl"] {
+    text-align: right;
+}
+
+[dir="ltr"] {
+    text-align: left;
+}
+
+/* Element Details */
+.element-details {
+    font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    font-size: 13px;
+    padding: 12px;
+    background: #f8f9fa;
+    border: 1px solid #eaeaea;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    color: #333;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.element-details .tag-name {
+    color: #22863a;
+}
+
+.element-details .classes {
+    color: #6f42c1;
+}
+
+.element-details .id {
+    color: #005cc5;
+}
+
+.element-details > span {
+    margin-right: 4px;
+}
+
+/* Animations */
+@keyframes panelFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -48%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+@keyframes notificationSlideIn {
+    from {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Overlay */
+.rtl-ltr-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
+    z-index: 999998;
+    animation: overlayFadeIn 0.2s ease-out;
+}
+
+@keyframes overlayFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
 #rtl-ltr-selector-panel {
     position: fixed;
     top: 20px;
@@ -30,139 +288,4 @@
 
 #rtl-ltr-selector-panel button:hover {
     background: #3367d6;
-}
-
-#rtl-ltr-advanced-panel {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    z-index: 999999;
-    display: none;
-    min-width: 400px;
-    font-family: Arial, sans-serif;
-}
-
-.panel-header {
-    font-size: 16px;
-    font-weight: bold;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
-}
-
-.panel-content {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.input-group label {
-    font-size: 14px;
-    color: #666;
-}
-
-.input-group input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-family: monospace;
-}
-
-.input-group .hint {
-    font-size: 12px;
-    color: #666;
-    margin-top: 4px;
-}
-
-.button-group {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 10px;
-}
-
-.button-group button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-}
-
-#apply-toggle {
-    background: #4285f4;
-    color: white;
-}
-
-#apply-toggle:hover {
-    background: #3367d6;
-}
-
-#cancel-toggle {
-    background: #f1f3f4;
-    color: #3c4043;
-}
-
-#cancel-toggle:hover {
-    background: #e8eaed;
-}
-
-.rtl-ltr-notification {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #323232;
-    color: white;
-    padding: 16px 24px;
-    border-radius: 4px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    animation: slideIn 0.3s ease-out;
-    z-index: 999999;
-}
-
-@keyframes slideIn {
-    from {
-        transform: translateY(100px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-[dir="rtl"] {
-    text-align: right;
-}
-
-[dir="ltr"] {
-    text-align: left;
-}
-
-.domain-info {
-    margin-top: 8px;
-    padding: 8px;
-    background: #f8f9fa;
-    border-radius: 4px;
-    font-size: 12px;
-    color: #5f6368;
-}
-
-.domain-info small {
-    display: block;
-    line-height: 1.4;
 }

@@ -102,20 +102,23 @@ window.addEventListener('load', () => {
 });
 
 /**
- * Creates and displays the advanced settings panel
+ * Shows the advanced panel with overlay
  * @param {Element} element - The element to generate settings for
  */
 function showAdvancedPanel(element) {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) {
-        console.error('Invalid element for advanced panel');
         return;
     }
 
     const cssSelector = getCssSelector(element);
     if (!cssSelector) {
-        console.error('Could not generate valid selector for element');
         return;
     }
+
+    // Create overlay
+    let overlay = document.createElement('div');
+    overlay.className = 'rtl-ltr-overlay';
+    document.body.appendChild(overlay);
 
     // Create or reuse panel element
     let panel = document.getElementById('rtl-ltr-advanced-panel');
@@ -125,11 +128,22 @@ function showAdvancedPanel(element) {
         document.body.appendChild(panel);
     }
     
+    // Get element details
+    const tagName = element.tagName.toLowerCase();
+    const elementClasses = Array.from(element.classList).join('.');
+    const elementId = element.id ? `#${element.id}` : '';
+    
     // Populate panel content
     panel.innerHTML = `
         <div class="panel-header">Advanced Toggle Settings</div>
         <div class="panel-content">
             <div class="input-group">
+                <label>Element Details:</label>
+                <div class="element-details">
+                    <span class="tag-name">${tagName}</span>
+                    ${elementClasses ? `<span class="classes">.${elementClasses}</span>` : ''}
+                    ${elementId ? `<span class="id">${elementId}</span>` : ''}
+                </div>
                 <label>CSS Selector:</label>
                 <input type="text" id="css-selector-input" value="${cssSelector}" />
                 <small class="hint">Edit the selector to target specific elements</small>
@@ -160,7 +174,7 @@ function showAdvancedPanel(element) {
                 targetElement.setAttribute('dir', newDirection);
                 
                 saveSelectorSettings(newSelector, newDirection);
-                panel.style.display = 'none';
+                closeAdvancedPanel();
             } else {
                 alert('No element found with the specified selector. Please check your CSS selector.');
             }
@@ -170,9 +184,34 @@ function showAdvancedPanel(element) {
     });
     
     // Handle cancel button click
-    document.getElementById('cancel-toggle').addEventListener('click', () => {
-        panel.style.display = 'none';
+    document.getElementById('cancel-toggle').addEventListener('click', closeAdvancedPanel);
+    
+    // Handle overlay click
+    overlay.addEventListener('click', closeAdvancedPanel);
+    
+    // Handle escape key
+    document.addEventListener('keydown', function escapeHandler(e) {
+        if (e.key === 'Escape') {
+            closeAdvancedPanel();
+            document.removeEventListener('keydown', escapeHandler);
+        }
     });
+}
+
+/**
+ * Closes the advanced panel and removes the overlay
+ */
+function closeAdvancedPanel() {
+    const panel = document.getElementById('rtl-ltr-advanced-panel');
+    const overlay = document.querySelector('.rtl-ltr-overlay');
+    
+    if (panel) {
+        panel.style.display = 'none';
+    }
+    
+    if (overlay) {
+        overlay.remove();
+    }
 }
 
 /**
