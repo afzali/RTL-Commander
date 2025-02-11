@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RTL-LTR Controller</title>
+    <style>
+        body {
+            width: 300px;
+            padding: 15px;
+            font-family: Arial, sans-serif;
+        }
+        .saved-elements {
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .element-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        button {
+            padding: 5px 10px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #3367d6;
+        }
+    </style>
+</head>
+<body>
+    <h2>RTL-LTR Controller</h2>
+    <p>Right-click on any element to:</p>
+    <ul>
+        <li>Toggle RTL/LTR direction</li>
+        <li>Edit element selector</li>
+    </ul>
+    <h3>Saved Elements</h3>
+    <div id="saved-elements" class="saved-elements"></div>
+    <script src="popup.js"></script>
+</body>
+</html>
