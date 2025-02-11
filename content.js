@@ -1,50 +1,28 @@
-// Helper function to get XPath of an element
-function getXPath(element) {
-    // Handle null or undefined element
-    if (!element || element.nodeType !== Node.ELEMENT_NODE) {
-        return '';
-    }
+/**
+ * RTL-LTR Text Direction Controller
+ * Content script that handles the text direction toggling functionality
+ */
 
-    // If element has ID, use it (but check for valid ID)
-    if (element.id && /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(element.id)) {
-        return `//*[@id="${element.id}"]`;
-    }
-
-    // If we reached the body, return its path
-    if (element === document.body) {
-        return '/html/body';
-    }
-
-    // Get the element's position among its siblings
-    let ix = 0;
-    let siblings = element.parentNode?.childNodes || [];
-
-    for (let i = 0; i < siblings.length; i++) {
-        let sibling = siblings[i];
-        if (sibling === element) {
-            let parentPath = element.parentNode ? getXPath(element.parentNode) : '';
-            if (!parentPath) return ''; // If parent path is invalid, return empty
-            return `${parentPath}/${element.tagName.toLowerCase()}[${ix + 1}]`;
-        }
-        if (sibling.nodeType === Node.ELEMENT_NODE && sibling.tagName === element.tagName) {
-            ix++;
-        }
-    }
-
-    return ''; // Return empty if path cannot be determined
-}
-
-// Helper function to get current domain
+/**
+ * Returns the current domain of the page
+ * @returns {string} Current domain (hostname)
+ */
 function getCurrentDomain() {
     return window.location.hostname;
 }
 
-// Helper function to get CSS selector
+/**
+ * Generates a unique CSS selector for a DOM element
+ * Tries to use ID if available, otherwise builds a path using tag names and nth-child
+ * @param {Element} element - DOM element to generate selector for
+ * @returns {string} CSS selector string
+ */
 function getCssSelector(element) {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) {
         return '';
     }
 
+    // If element has a valid ID, use it
     if (element.id && /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(element.id)) {
         return '#' + element.id;
     }
@@ -52,11 +30,14 @@ function getCssSelector(element) {
     let path = [];
     while (element.nodeType === Node.ELEMENT_NODE) {
         let selector = element.nodeName.toLowerCase();
+        
+        // If element has ID, use it and break
         if (element.id && /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(element.id)) {
             selector += '#' + element.id;
             path.unshift(selector);
             break;
         } else {
+            // Count previous siblings of same type for nth-of-type
             let sibling = element;
             let nth = 1;
             while (sibling.previousSibling) {
@@ -67,18 +48,20 @@ function getCssSelector(element) {
             }
             if (nth > 1) selector += `:nth-of-type(${nth})`;
         }
+        
         path.unshift(selector);
         element = element.parentNode;
         
+        // Stop at body or if we reach the root
         if (!element || element === document.body) break;
     }
     return path.join(' > ');
 }
 
-// Store the last right-clicked element
+// Track the last right-clicked element for context menu actions
 let lastClickedElement = null;
 
-// Add click listener to track right-clicked element
+// Listen for right-click events to store the target element
 document.addEventListener('contextmenu', function(e) {
     lastClickedElement = e.target;
     console.log('Right-clicked element:', {
@@ -89,7 +72,10 @@ document.addEventListener('contextmenu', function(e) {
     });
 });
 
-// Load saved directions on page load
+/**
+ * Loads and applies saved direction settings for the current domain
+ * Called when the page loads
+ */
 window.addEventListener('load', () => {
     console.log('Page loaded, restoring directions');
     const currentDomain = getCurrentDomain();
@@ -115,7 +101,10 @@ window.addEventListener('load', () => {
     });
 });
 
-// Create and show advanced toggle panel
+/**
+ * Creates and displays the advanced settings panel
+ * @param {Element} element - The element to generate settings for
+ */
 function showAdvancedPanel(element) {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) {
         console.error('Invalid element for advanced panel');
@@ -128,6 +117,7 @@ function showAdvancedPanel(element) {
         return;
     }
 
+    // Create or reuse panel element
     let panel = document.getElementById('rtl-ltr-advanced-panel');
     if (!panel) {
         panel = document.createElement('div');
@@ -135,6 +125,7 @@ function showAdvancedPanel(element) {
         document.body.appendChild(panel);
     }
     
+    // Populate panel content
     panel.innerHTML = `
         <div class="panel-header">Advanced Toggle Settings</div>
         <div class="panel-content">
@@ -155,7 +146,7 @@ function showAdvancedPanel(element) {
     
     panel.style.display = 'block';
     
-    // Add event listeners
+    // Handle apply button click
     document.getElementById('apply-toggle').addEventListener('click', () => {
         const newSelector = document.getElementById('css-selector-input').value;
         try {
@@ -178,12 +169,17 @@ function showAdvancedPanel(element) {
         }
     });
     
+    // Handle cancel button click
     document.getElementById('cancel-toggle').addEventListener('click', () => {
         panel.style.display = 'none';
     });
 }
 
-// Save selector settings for current domain
+/**
+ * Saves the direction settings for a selector in the current domain
+ * @param {string} selector - CSS selector to save settings for
+ * @param {string} direction - Text direction ('rtl' or 'ltr')
+ */
 function saveSelectorSettings(selector, direction) {
     const domain = getCurrentDomain();
     chrome.storage.local.get(domain, (items) => {
@@ -203,7 +199,9 @@ function saveSelectorSettings(selector, direction) {
     });
 }
 
-// Handle messages from background script
+/**
+ * Handles messages from the background script
+ */
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('Content script received message:', request);
 

@@ -1,21 +1,29 @@
-// Create context menu items
+/**
+ * RTL-LTR Text Direction Controller
+ * Background script that handles context menu creation and management
+ */
+
+// Create context menu items when extension is installed or updated
 chrome.runtime.onInstalled.addListener(() => {
   // Remove existing menu items first
   chrome.contextMenus.removeAll(() => {
+    // Simple toggle option
     chrome.contextMenus.create({
-      id: "toggleRTLSimple",
+      id: "toggleDirection",
       title: "Toggle RTL/LTR",
       contexts: ["all"]
     });
-    
+
+    // Advanced toggle option with selector editing
     chrome.contextMenus.create({
-      id: "toggleRTLAdvanced",
+      id: "toggleDirectionAdvanced",
       title: "Toggle RTL/LTR (Advanced)",
       contexts: ["all"]
     });
 
+    // Clear saved settings option
     chrome.contextMenus.create({
-      id: "clearSavedSelectors",
+      id: "clearSettings",
       title: "Clear Saved Settings",
       contexts: ["all"]
     });
@@ -26,11 +34,11 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   console.log('Menu clicked:', info.menuItemId);
   
-  if (info.menuItemId === "toggleRTLSimple") {
+  if (info.menuItemId === "toggleDirection") {
+    // Send simple toggle message to content script
     console.log('Sending toggleDirection message to tab:', tab.id);
     chrome.tabs.sendMessage(tab.id, {
-      action: "toggleDirection",
-      elementInfo: info
+      action: "toggleDirection"
     }, response => {
       if (chrome.runtime.lastError) {
         console.error('Error:', chrome.runtime.lastError);
@@ -38,17 +46,18 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         console.log('Message sent successfully');
       }
     });
-  } else if (info.menuItemId === "toggleRTLAdvanced") {
+  } else if (info.menuItemId === "toggleDirectionAdvanced") {
+    // Send advanced toggle message to content script
     console.log('Sending showAdvancedToggle message to tab:', tab.id);
     chrome.tabs.sendMessage(tab.id, {
-      action: "showAdvancedToggle",
-      elementInfo: info
+      action: "showAdvancedToggle"
     }, response => {
       if (chrome.runtime.lastError) {
         console.error('Error:', chrome.runtime.lastError);
       }
     });
-  } else if (info.menuItemId === "clearSavedSelectors") {
+  } else if (info.menuItemId === "clearSettings") {
+    // Clear settings and notify content script
     console.log('Clearing saved settings');
     chrome.storage.local.clear(() => {
       chrome.tabs.sendMessage(tab.id, {
