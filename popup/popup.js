@@ -4,8 +4,76 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
     const savedElementsContainer = document.getElementById('element-list');
-    savedElementsContainer.style.overflowY = 'auto';
-    savedElementsContainer.style.maxHeight = '300px';
+    const editDialog = document.getElementById('editDialog');
+    const overlay = document.getElementById('overlay');
+    let currentSelector = null;
+
+    // Close all menus when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.more-options-btn') && !e.target.closest('.more-options-menu')) {
+            document.querySelectorAll('.more-options-menu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+        }
+    });
+
+    // Close edit dialog
+    function closeEditDialog() {
+        editDialog.classList.remove('show');
+        overlay.classList.remove('show');
+        currentSelector = null;
+    }
+
+    // Add event listeners for edit dialog buttons
+    document.getElementById('cancelEdit').addEventListener('click', closeEditDialog);
+    
+    document.getElementById('saveEdit').addEventListener('click', async () => {
+        if (!currentSelector) return;
+
+        const direction = document.getElementById('editDirection').value;
+        const customCSS = document.getElementById('editCustomCSS').value;
+        const domain = await getCurrentTabDomain();
+
+        chrome.storage.local.get(domain, (items) => {
+            const domainData = items[domain];
+            if (domainData && domainData.selectors && domainData.selectors[currentSelector]) {
+                // Update settings
+                domainData.selectors[currentSelector].direction = direction;
+                domainData.selectors[currentSelector].customCSS = customCSS;
+                domainData.selectors[currentSelector].lastUpdated = new Date().toISOString();
+
+                chrome.storage.local.set({ [domain]: domainData }, () => {
+                    // Update the page
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                            action: "updateSettings",
+                            selector: currentSelector,
+                            direction: direction,
+                            customCSS: customCSS
+                        });
+                    });
+
+                    // Close dialog and refresh list
+                    closeEditDialog();
+                    loadSavedElements();
+                });
+            }
+        });
+    });
+
+    // Close dialog when clicking overlay
+    overlay.addEventListener('click', closeEditDialog);
+
+    // Show edit dialog
+    function showEditDialog(selector, data) {
+        currentSelector = selector;
+        document.getElementById('editSelector').value = selector;
+        document.getElementById('editDirection').value = data.direction;
+        document.getElementById('editCustomCSS').value = data.customCSS || '';
+        
+        editDialog.classList.add('show');
+        overlay.classList.add('show');
+    }
 
     // Get the current tab's domain
     async function getCurrentTabDomain() {
@@ -17,8 +85,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load and display saved elements for the current domain
     async function loadSavedElements() {
         const domain = await getCurrentTabDomain();
-        
-        // Completely clear the container
         savedElementsContainer.replaceChildren();
 
         chrome.storage.local.get(domain, (items) => {
@@ -31,11 +97,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
-            // Sort entries by lastUpdated time (newest first)
             const sortedEntries = Object.entries(domainData.selectors)
                 .sort(([, a], [, b]) => new Date(b.lastUpdated) - new Date(a.lastUpdated));
 
-            // Create document fragment for better performance
             const fragment = document.createDocumentFragment();
 
             sortedEntries.forEach(([selector, data]) => {
@@ -43,9 +107,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.className = 'element-item';
                 
                 const time = new Date(data.lastUpdated).toLocaleString();
-                const isEnabled = data.enabled !== false; // Default to true if not set
-                
-                // Create elements instead of using innerHTML for better control
+                const isEnabled = data.enabled !== false;
+
+                // Create elements
                 const elementInfo = document.createElement('div');
                 elementInfo.className = 'element-info';
 
@@ -90,16 +154,37 @@ document.addEventListener('DOMContentLoaded', async () => {
                 metaInfo.appendChild(timeSpan);
                 metaInfo.appendChild(switchLabel);
 
-                const removeBtn = document.createElement('button');
-                removeBtn.className = 'remove-btn';
-                removeBtn.dataset.selector = selector;
-                removeBtn.textContent = '×';
-
-                // Add remove button handler
-                removeBtn.addEventListener('click', async (e) => {
+                // Add more options button and menu
+                const moreOptionsBtn = document.createElement('button');
+                moreOptionsBtn.className = 'more-options-btn';
+                moreOptionsBtn.innerHTML = '⋮';
+                moreOptionsBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const selector = e.target.dataset.selector;
-                    
+                    const menu = li.querySelector('.more-options-menu');
+                    document.querySelectorAll('.more-options-menu').forEach(m => {
+                        if (m !== menu) m.classList.remove('show');
+                    });
+                    menu.classList.toggle('show');
+                });
+
+                const moreOptionsMenu = document.createElement('div');
+                moreOptionsMenu.className = 'more-options-menu';
+                moreOptionsMenu.innerHTML = `
+                    <ul>
+                        <li class="edit-option">Edit Settings</li>
+                        <li class="delete-option">Delete</li>
+                    </ul>
+                `;
+
+                // Add event listeners for menu options
+                const editOption = moreOptionsMenu.querySelector('.edit-option');
+                editOption.addEventListener('click', () => {
+                    showEditDialog(selector, data);
+                    moreOptionsMenu.classList.remove('show');
+                });
+
+                const deleteOption = moreOptionsMenu.querySelector('.delete-option');
+                deleteOption.addEventListener('click', async () => {
                     if (confirm('Are you sure you want to delete this setting?')) {
                         const domain = await getCurrentTabDomain();
                         chrome.storage.local.get(domain, (items) => {
@@ -120,13 +205,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     ? chrome.storage.local.remove(domain)
                                     : chrome.storage.local.set({ [domain]: domainData });
 
-                                // Wait for storage update to complete before refreshing list
                                 promise.then(() => {
                                     loadSavedElements();
                                 });
                             }
                         });
                     }
+                    moreOptionsMenu.classList.remove('show');
                 });
 
                 // Add toggle switch handler
@@ -140,7 +225,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (domainData && domainData.selectors && domainData.selectors[selector]) {
                             domainData.selectors[selector].enabled = isEnabled;
                             chrome.storage.local.set({ [domain]: domainData }).then(() => {
-                                // Update the page
                                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                                     chrome.tabs.sendMessage(tabs[0].id, {
                                         action: "toggleDirection",
@@ -155,34 +239,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 li.appendChild(elementInfo);
                 li.appendChild(metaInfo);
-                li.appendChild(removeBtn);
+                li.appendChild(moreOptionsBtn);
+                li.appendChild(moreOptionsMenu);
                 
                 fragment.appendChild(li);
             });
 
-            // Replace all content with new fragment
             savedElementsContainer.replaceChildren(fragment);
         });
     }
 
-    // Clear all settings for current domain
+    // Clear all settings
     document.getElementById('clear-all').addEventListener('click', async () => {
-        const domain = await getCurrentTabDomain();
-        
-        // Show confirmation dialog with clear message
-        const userConfirmed = confirm('Are you sure you want to delete all saved settings?');
-        
-        // Only proceed if user confirmed
-        if (userConfirmed === true) {
+        if (confirm('Are you sure you want to delete all saved settings?')) {
+            const domain = await getCurrentTabDomain();
             chrome.storage.local.remove(domain, () => {
-                // Notify content script
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     chrome.tabs.sendMessage(tabs[0].id, {
                         action: "settingsCleared"
                     });
                 });
-                
-                // Refresh the list
                 loadSavedElements();
             });
         }

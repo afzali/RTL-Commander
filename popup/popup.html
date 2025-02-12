@@ -6,9 +6,10 @@
     <style>
         body {
             width: 400px;
-            padding: 16px;
+            min-height: 300px;
             margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            padding: 16px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
             color: #333;
         }
 
@@ -29,6 +30,14 @@
             color: #4285f4;
         }
 
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
         #element-list {
             list-style: none;
             padding: 0;
@@ -36,9 +45,9 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
-            padding-right: 8px; /* Space for scrollbar */
+            padding-right: 8px;
         }
 
         /* Scrollbar styling */
@@ -162,6 +171,68 @@
             color: #d93025;
         }
 
+        .more-options-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: #666;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .more-options-btn:hover {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .more-options-menu {
+            position: absolute;
+            top: 32px;
+            right: 8px;
+            background: white;
+            border: 1px solid #eaeaea;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 1000;
+            min-width: 120px;
+        }
+
+        .more-options-menu.show {
+            display: block;
+        }
+
+        .more-options-menu ul {
+            list-style: none;
+            margin: 0;
+            padding: 4px 0;
+        }
+
+        .more-options-menu li {
+            padding: 8px 16px;
+            cursor: pointer;
+            color: #333;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .more-options-menu li:hover {
+            background: #f5f5f5;
+        }
+
+        .more-options-menu .delete-option {
+            color: #dc3545;
+        }
+
+        .more-options-menu .delete-option:hover {
+            background: #fff5f5;
+        }
+
         .no-items {
             text-align: center;
             padding: 24px;
@@ -251,12 +322,171 @@
         .slider.round:before {
             border-radius: 50%;
         }
+
+        .edit-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1001;
+            display: none;
+            width: 90%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .edit-dialog::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .edit-dialog::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .edit-dialog::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+
+        .edit-dialog::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .edit-dialog.show {
+            display: block;
+        }
+
+        .edit-dialog h3 {
+            margin: 0 0 20px 0;
+            font-size: 18px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .edit-dialog .form-group {
+            margin-bottom: 20px;
+        }
+
+        .edit-dialog label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .edit-dialog input,
+        .edit-dialog select,
+        .edit-dialog textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            line-height: 1.4;
+            font-family: inherit;
+        }
+
+        .edit-dialog textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .edit-dialog .buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+        }
+
+        .edit-dialog button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .edit-dialog .save-btn {
+            background: #007bff;
+            color: white;
+        }
+
+        .edit-dialog .save-btn:hover {
+            background: #0056b3;
+        }
+
+        .edit-dialog .cancel-btn {
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        .edit-dialog .cancel-btn:hover {
+            background: #e2e6ea;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: none;
+        }
+
+        .overlay.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
-    <h1>Saved Elements</h1>
-    <ul id="element-list"></ul>
-    <button id="clear-all">Clear All Settings</button>
+    <div class="container">
+        <h1>Saved Elements</h1>
+        <ul id="element-list"></ul>
+        <button id="clear-all">Clear All Settings</button>
+    </div>
+
+    <!-- Edit Dialog -->
+    <div class="edit-dialog" id="editDialog">
+        <h3>Edit Settings</h3>
+        <div class="form-group">
+            <label for="editSelector">Selector</label>
+            <input type="text" id="editSelector" readonly>
+        </div>
+        <div class="form-group">
+            <label for="editDirection">Direction</label>
+            <select id="editDirection">
+                <option value="rtl">RTL</option>
+                <option value="ltr">LTR</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="editCustomCSS">Custom CSS</label>
+            <textarea id="editCustomCSS" rows="3" placeholder="Enter custom CSS properties"></textarea>
+        </div>
+        <div class="buttons">
+            <button class="cancel-btn" id="cancelEdit">Cancel</button>
+            <button class="save-btn" id="saveEdit">Save Changes</button>
+        </div>
+    </div>
+
+    <!-- Overlay -->
+    <div class="overlay" id="overlay"></div>
     <script src="popup.js"></script>
 </body>
 </html>

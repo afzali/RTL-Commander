@@ -78,40 +78,52 @@ document.addEventListener('contextmenu', function(e) {
  * @param {Object} data - Settings data including direction and custom CSS
  */
 function applyDirectionToElements(selector, data) {
-    if (!data.enabled) {
-        removeDirectionFromElements(selector);
-        return;
-    }
-
     try {
-        const elements = document.querySelectorAll(selector);
-        if (elements.length > 0) {
-            console.log('Applying direction to elements:', selector);
-            elements.forEach(element => {
-                element.style.direction = data.direction;
-                element.setAttribute('dir', data.direction);
-            });
+        // First remove any existing direction
+        removeDirectionFromElements(selector);
 
-            // Apply custom CSS if exists
-            if (data.customCSS) {
-                let styleBlock = document.getElementById('rtl-ltr-custom-styles');
-                if (!styleBlock) {
-                    styleBlock = document.createElement('style');
-                    styleBlock.id = 'rtl-ltr-custom-styles';
-                    document.head.appendChild(styleBlock);
-                }
-                // Remove any existing rule for this selector
-                styleBlock.textContent = styleBlock.textContent.replace(
-                    new RegExp(`${selector}\\s*{[^}]*}`, 'g'),
-                    ''
-                );
-                // Add the new rule
-                const cssRule = `${selector} { direction: ${data.direction}; ${data.customCSS} }`;
-                styleBlock.textContent += cssRule;
+        // Find all matching elements
+        const elements = document.querySelectorAll(selector);
+        if (elements.length === 0) return;
+
+        elements.forEach(element => {
+            // Store original direction if not already stored
+            if (!element.hasAttribute('data-original-direction')) {
+                element.setAttribute('data-original-direction', getComputedStyle(element).direction || 'ltr');
             }
-        }
-    } catch (e) {
-        console.error('Invalid selector:', selector);
+
+            // Only apply if enabled
+            if (data.enabled !== false) {
+                // Apply direction
+                element.style.direction = data.direction;
+                
+                // Apply custom CSS if provided
+                if (data.customCSS) {
+                    try {
+                        // Parse and apply each CSS property
+                        const cssProperties = data.customCSS.split(';')
+                            .filter(prop => prop.trim())
+                            .forEach(prop => {
+                                const [key, value] = prop.split(':').map(s => s.trim());
+                                if (key && value) {
+                                    element.style[key] = value;
+                                }
+                            });
+                    } catch (cssError) {
+                        console.error('Error applying custom CSS:', cssError);
+                    }
+                }
+
+                // Add class for styling if needed
+                element.classList.add('rtl-extension-modified');
+            }
+        });
+
+        // Show notification
+        showNotification(`Direction ${data.enabled !== false ? 'applied' : 'removed'} for ${elements.length} elements`);
+    } catch (error) {
+        console.error('Error in applyDirectionToElements:', error);
+        showNotification('Error applying direction: ' + error.message, 'error');
     }
 }
 
@@ -123,20 +135,24 @@ function removeDirectionFromElements(selector) {
     try {
         const elements = document.querySelectorAll(selector);
         elements.forEach(element => {
-            element.style.removeProperty('direction');
-            element.removeAttribute('dir');
-        });
+            // Restore original direction if it was stored
+            const originalDirection = element.getAttribute('data-original-direction');
+            if (originalDirection) {
+                element.style.direction = originalDirection;
+                element.removeAttribute('data-original-direction');
+            } else {
+                element.style.direction = ''; // Reset to default
+            }
 
-        // Remove custom CSS if exists
-        const styleBlock = document.getElementById('rtl-ltr-custom-styles');
-        if (styleBlock) {
-            styleBlock.textContent = styleBlock.textContent.replace(
-                new RegExp(`${selector}\\s*{[^}]*}`, 'g'),
-                ''
-            );
-        }
-    } catch (e) {
-        console.error('Invalid selector:', selector);
+            // Remove any custom CSS properties
+            element.removeAttribute('style');
+            
+            // Remove our custom class
+            element.classList.remove('rtl-extension-modified');
+        });
+    } catch (error) {
+        console.error('Error in removeDirectionFromElements:', error);
+        showNotification('Error removing direction: ' + error.message, 'error');
     }
 }
 
@@ -528,6 +544,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         showAdvancedPanel(lastClickedElement);
     }
+    else if (request.action === "updateSettings") {
+        // Update direction and custom CSS for the specified selector
+        const data = {
+            direction: request.direction,
+            customCSS: request.customCSS,
+            enabled: true
+        };
+        
+        // Apply the updated settings immediately
+        applyDirectionToElements(request.selector, data);
+    }
     else if (request.action === "removeDirection") {
         // Remove direction and custom CSS from the specified selector
         removeDirectionFromElements(request.selector);
@@ -568,3 +595,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Always send a response
     sendResponse({ received: true });
 });
+
+/**
+ * Shows a notification to the user
+ * @param {string} message - Notification message
+ * @param {string} type - Notification type (optional, default: 'info')
+ */
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `rtl-ltr-notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
