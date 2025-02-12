@@ -688,6 +688,77 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 /**
+ * Creates a font application preference dialog
+ */
+function createFontDialog() {
+    // Remove existing dialog if any
+    const existingDialog = document.getElementById('rtl-ltr-font-dialog');
+    if (existingDialog) {
+        existingDialog.remove();
+    }
+
+    // Create dialog
+    const dialog = document.createElement('div');
+    dialog.id = 'rtl-ltr-font-dialog';
+    dialog.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        z-index: 999999;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+
+    dialog.innerHTML = `
+        <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #333;">Vazir Font Application</h3>
+        <p style="margin: 0 0 20px 0; font-size: 14px; color: #666;">How would you like to apply the Vazir font?</p>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="rtl-ltr-font-advanced" style="padding: 8px 12px; border: 1px solid #ddd; background: #f8f9fa; border-radius: 4px; cursor: pointer;">For Advanced CSS</button>
+            <button id="rtl-ltr-font-default" style="padding: 8px 12px; border: none; background: #007bff; color: white; border-radius: 4px; cursor: pointer;">As Default Font</button>
+        </div>
+    `;
+
+    // Add overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 999998;
+    `;
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(dialog);
+
+    return new Promise((resolve) => {
+        dialog.querySelector('#rtl-ltr-font-default').addEventListener('click', () => {
+            overlay.remove();
+            dialog.remove();
+            resolve('default');
+        });
+
+        dialog.querySelector('#rtl-ltr-font-advanced').addEventListener('click', () => {
+            overlay.remove();
+            dialog.remove();
+            resolve('advanced');
+        });
+
+        overlay.addEventListener('click', () => {
+            overlay.remove();
+            dialog.remove();
+            resolve('cancel');
+        });
+    });
+}
+
+/**
  * Toggles Vazir font on the page
  */
 function toggleVazirFont() {
@@ -714,13 +785,28 @@ function toggleVazirFont() {
                 document.head.appendChild(styleBlock);
             }
 
-            // Apply Vazir font to all elements
-            styleBlock.textContent = `
-                * {
-                    font-family: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif !important;
+            // Ask user for preference
+            createFontDialog().then(preference => {
+                if (preference === 'default') {
+                    // Apply Vazir font to all elements
+                    styleBlock.textContent = `
+                        * {
+                            font-family: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif !important;
+                        }
+                    `;
+                    showNotification('Vazir font has been set as the default font');
+                } else if (preference === 'advanced') {
+                    // Just add the font without applying it
+                    styleBlock.textContent = ''; // Empty style block to indicate font is loaded
+                    showNotification('Vazir font is now available for custom CSS');
+                } else {
+                    // User cancelled
+                    if (!document.querySelector('#rtl-ltr-vazir-font:not(:empty)')) {
+                        styleBlock.remove(); // Remove empty style block
+                    }
+                    showNotification('Font application cancelled');
                 }
-            `;
-            showNotification('Vazir font has been added to the page');
+            });
         }
     } catch (error) {
         console.error('Error toggling Vazir font:', error);
