@@ -7,6 +7,20 @@
 chrome.runtime.onInstalled.addListener(() => {
   // Remove existing menu items first
   chrome.contextMenus.removeAll(() => {
+    // Toggle whole page option (at the top)
+    chrome.contextMenus.create({
+      id: "toggleWholePage",
+      title: "Toggle RTL/LTR (Whole Page)",
+      contexts: ["all"]
+    });
+
+    // Separator
+    chrome.contextMenus.create({
+      id: "separator1",
+      type: "separator",
+      contexts: ["all"]
+    });
+
     // Simple toggle option
     chrome.contextMenus.create({
       id: "toggleDirection",
@@ -34,7 +48,16 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   console.log('Menu clicked:', info.menuItemId);
   
-  if (info.menuItemId === "toggleDirection") {
+  if (info.menuItemId === "toggleWholePage") {
+    // Send toggle whole page message to content script
+    chrome.tabs.sendMessage(tab.id, {
+      action: "toggleWholePage"
+    }, response => {
+      if (chrome.runtime.lastError) {
+        console.error('Error:', chrome.runtime.lastError);
+      }
+    });
+  } else if (info.menuItemId === "toggleDirection") {
     // Send simple toggle message to content script
     console.log('Sending toggleDirection message to tab:', tab.id);
     chrome.tabs.sendMessage(tab.id, {

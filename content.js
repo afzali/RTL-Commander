@@ -435,12 +435,48 @@ function saveSelectorSettings(selector, direction, customCSS) {
 }
 
 /**
+ * Toggles direction for the whole page
+ * Saves the setting in storage and applies it to body and all its children
+ */
+function toggleWholePage() {
+    const body = document.body;
+    const currentDirection = getComputedStyle(body).direction;
+    const newDirection = currentDirection === 'rtl' ? 'ltr' : 'rtl';
+    
+    // Create data object for the body
+    const data = {
+        direction: newDirection,
+        customCSS: '',
+        enabled: true
+    };
+    
+    // Apply to body and all its children
+    applyDirectionToElements('body, body *', data);
+    
+    // Save the settings
+    saveSelectorSettings('body, body *', newDirection, '');
+    
+    // Show notification
+    const notification = document.createElement('div');
+    notification.className = 'rtl-ltr-notification';
+    notification.textContent = `Page direction changed to ${newDirection.toUpperCase()}`;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+/**
  * Handles messages from the background script
  */
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('Content script received message:', request);
 
-    if (request.action === "toggleDirection") {
+    if (request.action === "toggleWholePage") {
+        toggleWholePage();
+    }
+    else if (request.action === "toggleDirection") {
         // Handle enable/disable toggle from popup
         if (request.hasOwnProperty('enabled')) {
             const domain = getCurrentDomain();

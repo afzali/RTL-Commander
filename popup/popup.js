@@ -4,6 +4,8 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
     const savedElementsContainer = document.getElementById('element-list');
+    savedElementsContainer.style.overflowY = 'auto';
+    savedElementsContainer.style.maxHeight = '300px';
 
     // Get the current tab's domain
     async function getCurrentTabDomain() {
@@ -15,107 +17,151 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load and display saved elements for the current domain
     async function loadSavedElements() {
         const domain = await getCurrentTabDomain();
-        savedElementsContainer.innerHTML = '';
+        
+        // Completely clear the container
+        savedElementsContainer.replaceChildren();
 
         chrome.storage.local.get(domain, (items) => {
             const domainData = items[domain];
             if (!domainData || !domainData.selectors || Object.keys(domainData.selectors).length === 0) {
-                savedElementsContainer.innerHTML = '<li class="no-items">No saved elements for this domain</li>';
+                const noItems = document.createElement('li');
+                noItems.className = 'no-items';
+                noItems.textContent = 'No saved elements for this domain';
+                savedElementsContainer.appendChild(noItems);
                 return;
             }
 
-            Object.entries(domainData.selectors).forEach(([selector, data]) => {
+            // Sort entries by lastUpdated time (newest first)
+            const sortedEntries = Object.entries(domainData.selectors)
+                .sort(([, a], [, b]) => new Date(b.lastUpdated) - new Date(a.lastUpdated));
+
+            // Create document fragment for better performance
+            const fragment = document.createDocumentFragment();
+
+            sortedEntries.forEach(([selector, data]) => {
                 const li = document.createElement('li');
                 li.className = 'element-item';
                 
                 const time = new Date(data.lastUpdated).toLocaleString();
                 const isEnabled = data.enabled !== false; // Default to true if not set
                 
-                li.innerHTML = `
-                    <div class="element-info">
-                        <div class="selector">${selector}</div>
-                        <div class="direction ${data.direction}">${data.direction.toUpperCase()}</div>
-                    </div>
-                    <div class="meta-info">
-                        <span class="domain">${domain}</span>
-                        <span class="time">${time}</span>
-                        <label class="switch">
-                            <input type="checkbox" class="toggle-switch" data-selector="${selector}" ${isEnabled ? 'checked' : ''}>
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-                    <button class="remove-btn" data-selector="${selector}">×</button>
-                `;
-                
-                savedElementsContainer.appendChild(li);
-            });
+                // Create elements instead of using innerHTML for better control
+                const elementInfo = document.createElement('div');
+                elementInfo.className = 'element-info';
 
-            // Add remove button handlers
-            document.querySelectorAll('.remove-btn').forEach(button => {
-                button.addEventListener('click', async (e) => {
+                const selectorDiv = document.createElement('div');
+                selectorDiv.className = 'selector';
+                selectorDiv.textContent = selector;
+
+                const directionDiv = document.createElement('div');
+                directionDiv.className = `direction ${data.direction}`;
+                directionDiv.textContent = data.direction.toUpperCase();
+
+                elementInfo.appendChild(selectorDiv);
+                elementInfo.appendChild(directionDiv);
+
+                const metaInfo = document.createElement('div');
+                metaInfo.className = 'meta-info';
+
+                const domainSpan = document.createElement('span');
+                domainSpan.className = 'domain';
+                domainSpan.textContent = domain;
+
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'time';
+                timeSpan.textContent = time;
+
+                const switchLabel = document.createElement('label');
+                switchLabel.className = 'switch';
+                
+                const toggleInput = document.createElement('input');
+                toggleInput.type = 'checkbox';
+                toggleInput.className = 'toggle-switch';
+                toggleInput.dataset.selector = selector;
+                toggleInput.checked = isEnabled;
+
+                const sliderSpan = document.createElement('span');
+                sliderSpan.className = 'slider round';
+
+                switchLabel.appendChild(toggleInput);
+                switchLabel.appendChild(sliderSpan);
+
+                metaInfo.appendChild(domainSpan);
+                metaInfo.appendChild(timeSpan);
+                metaInfo.appendChild(switchLabel);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.dataset.selector = selector;
+                removeBtn.textContent = '×';
+
+                // Add remove button handler
+                removeBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
                     const selector = e.target.dataset.selector;
                     
-                    // Show confirmation dialog before removing
-                    const userConfirmed = confirm('Are you sure you want to delete this setting?');
-                    
-                    // Only proceed if user confirmed
-                    if (userConfirmed === true) {
-                        // Remove from storage
+                    if (confirm('Are you sure you want to delete this setting?')) {
                         const domain = await getCurrentTabDomain();
                         chrome.storage.local.get(domain, (items) => {
                             const domainData = items[domain];
                             if (domainData && domainData.selectors) {
                                 delete domainData.selectors[selector];
                                 
-                                // If no more selectors, remove the domain entry
-                                if (Object.keys(domainData.selectors).length === 0) {
-                                    chrome.storage.local.remove(domain);
-                                } else {
-                                    chrome.storage.local.set({ [domain]: domainData });
-                                }
-                                
-                                // Remove from current tab
+                                // Remove from current tab first
                                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                                     chrome.tabs.sendMessage(tabs[0].id, {
                                         action: "removeDirection",
                                         selector: selector
                                     });
                                 });
-                                
-                                // Refresh the list
-                                loadSavedElements();
+
+                                // Then update storage
+                                const promise = Object.keys(domainData.selectors).length === 0
+                                    ? chrome.storage.local.remove(domain)
+                                    : chrome.storage.local.set({ [domain]: domainData });
+
+                                // Wait for storage update to complete before refreshing list
+                                promise.then(() => {
+                                    loadSavedElements();
+                                });
                             }
                         });
                     }
                 });
-            });
 
-            // Add toggle switch handlers
-            document.querySelectorAll('.toggle-switch').forEach(toggle => {
-                toggle.addEventListener('change', async (e) => {
+                // Add toggle switch handler
+                toggleInput.addEventListener('change', async (e) => {
                     const selector = e.target.dataset.selector;
                     const isEnabled = e.target.checked;
                     
-                    // Update storage
                     const domain = await getCurrentTabDomain();
                     chrome.storage.local.get(domain, (items) => {
                         const domainData = items[domain];
                         if (domainData && domainData.selectors && domainData.selectors[selector]) {
                             domainData.selectors[selector].enabled = isEnabled;
-                            chrome.storage.local.set({ [domain]: domainData });
-                            
-                            // Update in current tab
-                            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                                chrome.tabs.sendMessage(tabs[0].id, {
-                                    action: "toggleDirection",
-                                    selector: selector,
-                                    enabled: isEnabled
+                            chrome.storage.local.set({ [domain]: domainData }).then(() => {
+                                // Update the page
+                                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                                    chrome.tabs.sendMessage(tabs[0].id, {
+                                        action: "toggleDirection",
+                                        selector: selector,
+                                        enabled: isEnabled
+                                    });
                                 });
                             });
                         }
                     });
                 });
+
+                li.appendChild(elementInfo);
+                li.appendChild(metaInfo);
+                li.appendChild(removeBtn);
+                
+                fragment.appendChild(li);
             });
+
+            // Replace all content with new fragment
+            savedElementsContainer.replaceChildren(fragment);
         });
     }
 
