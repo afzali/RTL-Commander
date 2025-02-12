@@ -1,50 +1,66 @@
 # RTL Commander
 
-A powerful browser extension that gives you complete control over RTL (Right-to-Left) and LTR (Left-to-Right) text direction on web pages. Perfect for users who frequently work with mixed-direction content, multilingual websites, or need precise control over text direction.
+A powerful Chrome extension for managing RTL (Right-to-Left) and LTR (Left-to-Right) text direction on web pages.
 
 ## Features
 
-- 🎮 Command and control text direction with precision
-- 🔄 Instant switching between RTL and LTR
-- 🎯 Apply direction changes to specific elements or entire pages
-- ⚡ Easy-to-use popup interface
-- 🌐 Works on any webpage
-- ⌨️ Keyboard shortcuts support
-- 🎨 Clean and intuitive user interface
+### Basic Mode
+- Quick toggle of text direction for any selected element
+- Save direction settings for specific elements on a page
+- Settings persist across page reloads
+- Enable/disable saved settings with a simple toggle
+
+### Advanced Mode
+- Apply custom CSS properties to elements
+- Fine-grained control over text direction and styling
+- Edit saved settings through a user-friendly interface
+- Three-dot menu for managing saved settings (edit/delete)
+
+### Context Menu Features
+1. **Toggle Direction for Entire Page**: Quickly change the direction of all text on the page
+2. **Toggle Vazir Font**: Add or remove the Vazir font with two application modes:
+   - As Default Font: Apply Vazir font to all elements on the page
+   - For Advanced CSS: Load the font for use in custom CSS settings
+
+### User Interface
+- Clean and intuitive popup interface
+- Scrollable list of saved settings
+- Confirmation dialogs for important actions
+- Visual feedback through notifications
+- Edit dialog for modifying saved settings
+
+## How to Use
+
+### Basic Usage
+1. Right-click on any element to toggle its text direction
+2. Use the popup to view and manage saved settings
+3. Toggle settings on/off using the switch in the popup
+
+### Advanced Features
+1. Click the three-dot menu on any saved setting to:
+   - Edit the selector, direction, and custom CSS
+   - Delete the setting
+2. Use the context menu to:
+   - Toggle direction for the entire page
+   - Add Vazir font (with options for application mode)
+
+### Managing Font Settings
+1. Right-click anywhere on the page
+2. Select "Toggle Vazir Font"
+3. Choose how to apply the font:
+   - "As Default Font" to apply it to all elements
+   - "For Advanced CSS" to use it in custom CSS settings
 
 ## Installation
 
-### From Browser Extension Store
-*(Coming soon)*
-
-### Manual Installation
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/[username]/RTL-LTR-Controller.git
-   ```
-2. Open your browser's extension page
-   - Chrome: Navigate to `chrome://extensions/`
-   - Firefox: Navigate to `about:addons`
-3. Enable Developer Mode
+1. Clone this repository
+2. Open Chrome and go to `chrome://extensions/`
+3. Enable "Developer mode"
 4. Click "Load unpacked" and select the extension directory
-
-## Usage
-
-1. Click on the extension icon in your browser toolbar
-2. Use the popup interface to:
-   - Switch text direction for the current element
-   - Apply direction changes to the entire page
-   - Access quick settings
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Feel free to submit issues and enhancement requests!
 
 ## License
 
@@ -56,7 +72,7 @@ If you encounter any problems or have suggestions, please [open an issue](https:
 
 ## Authors
 
-- Initial work - [Your Name]
+- Initial work - [afzali](https://github.com/afzali)
 
 ## Acknowledgments
 
