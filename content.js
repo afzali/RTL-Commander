@@ -73,6 +73,74 @@ document.addEventListener('contextmenu', function(e) {
 });
 
 /**
+ * Applies direction and custom CSS to elements matching a selector
+ * @param {string} selector - CSS selector
+ * @param {Object} data - Settings data including direction and custom CSS
+ */
+function applyDirectionToElements(selector, data) {
+    if (!data.enabled) {
+        removeDirectionFromElements(selector);
+        return;
+    }
+
+    try {
+        const elements = document.querySelectorAll(selector);
+        if (elements.length > 0) {
+            console.log('Applying direction to elements:', selector);
+            elements.forEach(element => {
+                element.style.direction = data.direction;
+                element.setAttribute('dir', data.direction);
+            });
+
+            // Apply custom CSS if exists
+            if (data.customCSS) {
+                let styleBlock = document.getElementById('rtl-ltr-custom-styles');
+                if (!styleBlock) {
+                    styleBlock = document.createElement('style');
+                    styleBlock.id = 'rtl-ltr-custom-styles';
+                    document.head.appendChild(styleBlock);
+                }
+                // Remove any existing rule for this selector
+                styleBlock.textContent = styleBlock.textContent.replace(
+                    new RegExp(`${selector}\\s*{[^}]*}`, 'g'),
+                    ''
+                );
+                // Add the new rule
+                const cssRule = `${selector} { direction: ${data.direction}; ${data.customCSS} }`;
+                styleBlock.textContent += cssRule;
+            }
+        }
+    } catch (e) {
+        console.error('Invalid selector:', selector);
+    }
+}
+
+/**
+ * Removes direction and custom CSS from elements matching a selector
+ * @param {string} selector - CSS selector
+ */
+function removeDirectionFromElements(selector) {
+    try {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+            element.style.removeProperty('direction');
+            element.removeAttribute('dir');
+        });
+
+        // Remove custom CSS if exists
+        const styleBlock = document.getElementById('rtl-ltr-custom-styles');
+        if (styleBlock) {
+            styleBlock.textContent = styleBlock.textContent.replace(
+                new RegExp(`${selector}\\s*{[^}]*}`, 'g'),
+                ''
+            );
+        }
+    } catch (e) {
+        console.error('Invalid selector:', selector);
+    }
+}
+
+/**
  * Loads and applies saved direction settings for the current domain
  * Called when the page loads
  */
@@ -85,16 +153,7 @@ window.addEventListener('load', () => {
             // Only apply settings for current domain
             if (domain === currentDomain && domainData.selectors) {
                 Object.entries(domainData.selectors).forEach(([selector, data]) => {
-                    try {
-                        const element = document.querySelector(selector);
-                        if (element) {
-                            console.log('Applying direction to element:', selector);
-                            element.style.direction = data.direction;
-                            element.setAttribute('dir', data.direction);
-                        }
-                    } catch (e) {
-                        console.error('Invalid selector:', selector);
-                    }
+                    applyDirectionToElements(selector, data);
                 });
             }
         });
@@ -125,6 +184,113 @@ function showAdvancedPanel(element) {
     if (!panel) {
         panel = document.createElement('div');
         panel.id = 'rtl-ltr-advanced-panel';
+        
+        // Add styles for the panel
+        const styles = document.createElement('style');
+        styles.textContent = `
+            #rtl-ltr-advanced-panel {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000;
+                max-width: 500px;
+                width: 90%;
+                display: none;
+            }
+            
+            .rtl-ltr-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 9999;
+            }
+            
+            #rtl-ltr-advanced-panel .panel-header {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 15px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #eee;
+            }
+            
+            #rtl-ltr-advanced-panel .input-group {
+                margin-bottom: 15px;
+            }
+            
+            #rtl-ltr-advanced-panel label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: 500;
+            }
+            
+            #rtl-ltr-advanced-panel input[type="text"],
+            #rtl-ltr-advanced-panel textarea {
+                width: 100%;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                margin-bottom: 5px;
+                font-family: monospace;
+            }
+
+            #rtl-ltr-advanced-panel textarea {
+                min-height: 80px;
+                resize: vertical;
+            }
+            
+            #rtl-ltr-advanced-panel .hint {
+                display: block;
+                color: #666;
+                font-size: 12px;
+                margin-bottom: 15px;
+            }
+            
+            #rtl-ltr-advanced-panel .element-details {
+                background: #f5f5f5;
+                padding: 8px;
+                border-radius: 4px;
+                margin-bottom: 15px;
+                font-family: monospace;
+            }
+            
+            #rtl-ltr-advanced-panel .button-group {
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+                margin-top: 20px;
+            }
+            
+            #rtl-ltr-advanced-panel button {
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: 500;
+            }
+            
+            #rtl-ltr-advanced-panel #apply-toggle {
+                background: #4285f4;
+                color: white;
+            }
+            
+            #rtl-ltr-advanced-panel #cancel-toggle {
+                background: #f1f3f4;
+                color: #3c4043;
+            }
+            
+            #rtl-ltr-advanced-panel button:hover {
+                opacity: 0.9;
+            }
+        `;
+        document.head.appendChild(styles);
         document.body.appendChild(panel);
     }
     
@@ -147,12 +313,16 @@ function showAdvancedPanel(element) {
                 <label>CSS Selector:</label>
                 <input type="text" id="css-selector-input" value="${cssSelector}" />
                 <small class="hint">Edit the selector to target specific elements</small>
+                
+                <label>Custom CSS:</label>
+                <textarea id="custom-css-input" placeholder="Enter additional CSS properties (e.g., text-align: right;)"></textarea>
+                <small class="hint">Add custom CSS properties to apply to the selected elements</small>
             </div>
             <div class="domain-info">
                 <small>Settings will be saved for: ${getCurrentDomain()}</small>
             </div>
             <div class="button-group">
-                <button id="apply-toggle">Apply Toggle</button>
+                <button id="apply-toggle">Apply Settings</button>
                 <button id="cancel-toggle">Cancel</button>
             </div>
         </div>
@@ -163,20 +333,39 @@ function showAdvancedPanel(element) {
     // Handle apply button click
     document.getElementById('apply-toggle').addEventListener('click', () => {
         const newSelector = document.getElementById('css-selector-input').value;
+        const customCSS = document.getElementById('custom-css-input').value;
+        
         try {
-            const targetElement = document.querySelector(newSelector);
+            const targetElements = document.querySelectorAll(newSelector);
             
-            if (targetElement) {
-                const currentDirection = getComputedStyle(targetElement).direction;
+            if (targetElements.length > 0) {
+                const currentDirection = getComputedStyle(targetElements[0]).direction;
                 const newDirection = currentDirection === 'rtl' ? 'ltr' : 'rtl';
                 
-                targetElement.style.direction = newDirection;
-                targetElement.setAttribute('dir', newDirection);
+                // Create a style block for the custom CSS if not exists
+                let styleBlock = document.getElementById('rtl-ltr-custom-styles');
+                if (!styleBlock) {
+                    styleBlock = document.createElement('style');
+                    styleBlock.id = 'rtl-ltr-custom-styles';
+                    document.head.appendChild(styleBlock);
+                }
+
+                // Apply direction and custom CSS to all matching elements
+                targetElements.forEach(el => {
+                    el.style.direction = newDirection;
+                    el.setAttribute('dir', newDirection);
+                });
+
+                // Add the custom CSS to the style block
+                if (customCSS.trim()) {
+                    const cssRule = `${newSelector} { direction: ${newDirection}; ${customCSS} }`;
+                    styleBlock.textContent += cssRule;
+                }
                 
-                saveSelectorSettings(newSelector, newDirection);
+                saveSelectorSettings(newSelector, newDirection, customCSS);
                 closeAdvancedPanel();
             } else {
-                alert('No element found with the specified selector. Please check your CSS selector.');
+                alert('No elements found with the specified selector. Please check your CSS selector.');
             }
         } catch (e) {
             alert('Invalid CSS selector. Please check your syntax.');
@@ -218,22 +407,29 @@ function closeAdvancedPanel() {
  * Saves the direction settings for a selector in the current domain
  * @param {string} selector - CSS selector to save settings for
  * @param {string} direction - Text direction ('rtl' or 'ltr')
+ * @param {string} customCSS - Custom CSS properties
  */
-function saveSelectorSettings(selector, direction) {
+function saveSelectorSettings(selector, direction, customCSS) {
     const domain = getCurrentDomain();
     chrome.storage.local.get(domain, (items) => {
         const domainData = items[domain] || { selectors: {} };
+        
         domainData.selectors[selector] = {
             direction: direction,
-            lastUpdated: new Date().toISOString()
+            customCSS: customCSS,
+            lastUpdated: new Date().toISOString(),
+            enabled: true
         };
         
         chrome.storage.local.set({
             [domain]: domainData
         }, () => {
-            if (chrome.runtime.lastError) {
-                console.error('Error saving settings:', chrome.runtime.lastError);
-            }
+            console.log('Saved direction settings:', {
+                domain,
+                selector,
+                direction,
+                customCSS
+            });
         });
     });
 }
@@ -245,25 +441,49 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('Content script received message:', request);
 
     if (request.action === "toggleDirection") {
-        if (!lastClickedElement) {
-            console.warn('No element was right-clicked!');
-            return;
+        // Handle enable/disable toggle from popup
+        if (request.hasOwnProperty('enabled')) {
+            const domain = getCurrentDomain();
+            chrome.storage.local.get(domain, (items) => {
+                const domainData = items[domain];
+                if (domainData && domainData.selectors && domainData.selectors[request.selector]) {
+                    const data = domainData.selectors[request.selector];
+                    data.enabled = request.enabled;
+                    applyDirectionToElements(request.selector, data);
+                }
+            });
         }
-        
-        const element = lastClickedElement;
-        console.log('Toggling direction for element:', {
-            tagName: element.tagName,
-            id: element.id,
-            currentDirection: getComputedStyle(element).direction
-        });
+        // Handle normal direction toggle from context menu
+        else {
+            if (!lastClickedElement) {
+                console.warn('No element was right-clicked!');
+                return;
+            }
+            
+            const element = lastClickedElement;
+            console.log('Toggling direction for element:', {
+                tagName: element.tagName,
+                id: element.id,
+                currentDirection: getComputedStyle(element).direction
+            });
 
-        const currentDirection = getComputedStyle(element).direction;
-        const newDirection = currentDirection === 'rtl' ? 'ltr' : 'rtl';
-        
-        element.style.direction = newDirection;
-        element.setAttribute('dir', newDirection);
-
-        saveSelectorSettings(getCssSelector(element), newDirection);
+            const currentDirection = getComputedStyle(element).direction;
+            const newDirection = currentDirection === 'rtl' ? 'ltr' : 'rtl';
+            const selector = getCssSelector(element);
+            
+            // Create data object for the element
+            const data = {
+                direction: newDirection,
+                customCSS: '',
+                enabled: true
+            };
+            
+            // Apply the direction change
+            applyDirectionToElements(selector, data);
+            
+            // Save the settings
+            saveSelectorSettings(selector, newDirection, '');
+        }
     }
     else if (request.action === "showAdvancedToggle") {
         if (!lastClickedElement) {

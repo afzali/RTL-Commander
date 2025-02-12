@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.className = 'element-item';
                 
                 const time = new Date(data.lastUpdated).toLocaleString();
+                const isEnabled = data.enabled !== false; // Default to true if not set
                 
                 li.innerHTML = `
                     <div class="element-info">
@@ -38,6 +39,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="meta-info">
                         <span class="domain">${domain}</span>
                         <span class="time">${time}</span>
+                        <label class="switch">
+                            <input type="checkbox" class="toggle-switch" data-selector="${selector}" ${isEnabled ? 'checked' : ''}>
+                            <span class="slider round"></span>
+                        </label>
                     </div>
                     <button class="remove-btn" data-selector="${selector}">×</button>
                 `;
@@ -74,6 +79,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                             
                             // Refresh the list
                             loadSavedElements();
+                        }
+                    });
+                });
+            });
+
+            // Add toggle switch handlers
+            document.querySelectorAll('.toggle-switch').forEach(toggle => {
+                toggle.addEventListener('change', async (e) => {
+                    const selector = e.target.dataset.selector;
+                    const isEnabled = e.target.checked;
+                    
+                    // Update storage
+                    const domain = await getCurrentTabDomain();
+                    chrome.storage.local.get(domain, (items) => {
+                        const domainData = items[domain];
+                        if (domainData && domainData.selectors && domainData.selectors[selector]) {
+                            domainData.selectors[selector].enabled = isEnabled;
+                            chrome.storage.local.set({ [domain]: domainData });
+                            
+                            // Update in current tab
+                            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                                chrome.tabs.sendMessage(tabs[0].id, {
+                                    action: "toggleDirection",
+                                    selector: selector,
+                                    enabled: isEnabled
+                                });
+                            });
                         }
                     });
                 });
