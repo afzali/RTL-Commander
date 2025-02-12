@@ -492,6 +492,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         showAdvancedPanel(lastClickedElement);
     }
+    else if (request.action === "removeDirection") {
+        // Remove direction and custom CSS from the specified selector
+        removeDirectionFromElements(request.selector);
+    }
     else if (request.action === "confirmClearSettings") {
         // Show confirmation dialog
         if (confirm('Are you sure you want to delete all saved settings?')) {
