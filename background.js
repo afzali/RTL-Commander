@@ -14,6 +14,13 @@ chrome.runtime.onInstalled.addListener(() => {
       contexts: ["all"]
     });
 
+    // Add Vazir font
+    chrome.contextMenus.create({
+      id: "addVazirFont",
+      title: "Toggle Vazir Font",
+      contexts: ["all"]
+    });
+
     // Separator
     chrome.contextMenus.create({
       id: "separator1",
@@ -52,6 +59,15 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     // Send toggle whole page message to content script
     chrome.tabs.sendMessage(tab.id, {
       action: "toggleWholePage"
+    }, response => {
+      if (chrome.runtime.lastError) {
+        console.error('Error:', chrome.runtime.lastError);
+      }
+    });
+  } else if (info.menuItemId === "addVazirFont") {
+    // Send add Vazir font message to content script
+    chrome.tabs.sendMessage(tab.id, {
+      action: "addVazirFont"
     }, response => {
       if (chrome.runtime.lastError) {
         console.error('Error:', chrome.runtime.lastError);

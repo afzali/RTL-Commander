@@ -679,10 +679,54 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }, 3000);
         });
     }
+    else if (request.action === "addVazirFont") {
+        toggleVazirFont();
+    }
 
     // Always send a response
     sendResponse({ received: true });
 });
+
+/**
+ * Toggles Vazir font on the page
+ */
+function toggleVazirFont() {
+    try {
+        let styleBlock = document.getElementById('rtl-ltr-vazir-font');
+        
+        if (styleBlock && styleBlock.textContent) {
+            // Font is active, remove it
+            styleBlock.textContent = '';
+            showNotification('Vazir font has been removed');
+        } else {
+            // Add Google Fonts link if not already added
+            if (!document.querySelector('link[href*="fonts.googleapis.com/css2?family=Vazirmatn"]')) {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = 'https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap';
+                document.head.appendChild(link);
+            }
+
+            // Create or update style for default font
+            if (!styleBlock) {
+                styleBlock = document.createElement('style');
+                styleBlock.id = 'rtl-ltr-vazir-font';
+                document.head.appendChild(styleBlock);
+            }
+
+            // Apply Vazir font to all elements
+            styleBlock.textContent = `
+                * {
+                    font-family: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif !important;
+                }
+            `;
+            showNotification('Vazir font has been added to the page');
+        }
+    } catch (error) {
+        console.error('Error toggling Vazir font:', error);
+        showNotification('Error toggling Vazir font: ' + error.message, 'error');
+    }
+}
 
 /**
  * Shows a notification to the user
