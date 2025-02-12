@@ -86,6 +86,14 @@ function applyDirectionToElements(selector, data) {
         const elements = document.querySelectorAll(selector);
         if (elements.length === 0) return;
 
+        // Create or get style block for this selector
+        let styleBlock = document.getElementById(`rtl-ltr-style-${btoa(selector)}`);
+        if (!styleBlock) {
+            styleBlock = document.createElement('style');
+            styleBlock.id = `rtl-ltr-style-${btoa(selector)}`;
+            document.head.appendChild(styleBlock);
+        }
+
         elements.forEach(element => {
             // Store original direction if not already stored
             if (!element.hasAttribute('data-original-direction')) {
@@ -94,28 +102,33 @@ function applyDirectionToElements(selector, data) {
 
             // Only apply if enabled
             if (data.enabled !== false) {
-                // Apply direction
-                element.style.direction = data.direction;
+                // Add class for styling
+                element.classList.add('rtl-extension-modified');
                 
-                // Apply custom CSS if provided
+                // Create CSS rule
+                let cssRule = `${selector} { direction: ${data.direction} !important;`;
+                
+                // Add custom CSS if provided
                 if (data.customCSS) {
                     try {
-                        // Parse and apply each CSS property
+                        // Parse and add each CSS property
                         const cssProperties = data.customCSS.split(';')
                             .filter(prop => prop.trim())
-                            .forEach(prop => {
+                            .map(prop => {
                                 const [key, value] = prop.split(':').map(s => s.trim());
-                                if (key && value) {
-                                    element.style[key] = value;
-                                }
-                            });
+                                return key && value ? `${key}: ${value} !important;` : '';
+                            })
+                            .join(' ');
+                        cssRule += ` ${cssProperties}`;
                     } catch (cssError) {
-                        console.error('Error applying custom CSS:', cssError);
+                        console.error('Error parsing custom CSS:', cssError);
                     }
                 }
-
-                // Add class for styling if needed
-                element.classList.add('rtl-extension-modified');
+                
+                cssRule += ' }';
+                
+                // Apply the CSS rule
+                styleBlock.textContent = cssRule;
             }
         });
 
@@ -135,45 +148,120 @@ function removeDirectionFromElements(selector) {
     try {
         const elements = document.querySelectorAll(selector);
         elements.forEach(element => {
+            // Remove our custom class
+            element.classList.remove('rtl-extension-modified');
+            
             // Restore original direction if it was stored
             const originalDirection = element.getAttribute('data-original-direction');
             if (originalDirection) {
-                element.style.direction = originalDirection;
                 element.removeAttribute('data-original-direction');
-            } else {
-                element.style.direction = ''; // Reset to default
             }
-
-            // Remove any custom CSS properties
-            element.removeAttribute('style');
-            
-            // Remove our custom class
-            element.classList.remove('rtl-extension-modified');
         });
+
+        // Remove style block if exists
+        const styleBlock = document.getElementById(`rtl-ltr-style-${btoa(selector)}`);
+        if (styleBlock) {
+            styleBlock.remove();
+        }
     } catch (error) {
         console.error('Error in removeDirectionFromElements:', error);
         showNotification('Error removing direction: ' + error.message, 'error');
     }
 }
 
-/**
- * Loads and applies saved direction settings for the current domain
- * Called when the page loads
- */
-window.addEventListener('load', () => {
-    console.log('Page loaded, restoring directions');
-    const currentDomain = getCurrentDomain();
-    chrome.storage.local.get(null, (items) => {
-        console.log('Loaded stored items:', items);
-        Object.entries(items).forEach(([domain, domainData]) => {
-            // Only apply settings for current domain
-            if (domain === currentDomain && domainData.selectors) {
-                Object.entries(domainData.selectors).forEach(([selector, data]) => {
-                    applyDirectionToElements(selector, data);
+// Initialize when page loads
+function initializeSettings() {
+    chrome.storage.local.get(window.location.hostname, (items) => {
+        if (chrome.runtime.lastError) {
+            console.error('Storage error:', chrome.runtime.lastError);
+            return;
+        }
+
+        const domainData = items[window.location.hostname];
+        if (domainData && domainData.selectors) {
+            Object.entries(domainData.selectors).forEach(([selector, data]) => {
+                try {
+                    if (data.enabled !== false) {
+                        applyDirectionToElements(selector, data);
+                    }
+                } catch (error) {
+                    console.error('Error applying settings for selector:', selector, error);
+                }
+            });
+        }
+    });
+}
+
+// Initialize observer for dynamic content
+function initializeObserver() {
+    // Make sure body exists
+    if (!document.body) {
+        console.warn('Body not found, waiting for DOMContentLoaded');
+        return;
+    }
+
+    const observer = new MutationObserver((mutations) => {
+        chrome.storage.local.get(window.location.hostname, (items) => {
+            if (chrome.runtime.lastError) {
+                console.error('Storage error:', chrome.runtime.lastError);
+                return;
+            }
+
+            const domainData = items[window.location.hostname];
+            if (domainData && domainData.selectors) {
+                mutations.forEach(mutation => {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            Object.entries(domainData.selectors).forEach(([selector, data]) => {
+                                try {
+                                    if (data.enabled !== false) {
+                                        // Check if the new node matches our selector
+                                        if (node.matches && node.matches(selector)) {
+                                            applyDirectionToElements(selector, data);
+                                        }
+                                        // Check children of the new node
+                                        const matches = node.querySelectorAll(selector);
+                                        if (matches.length > 0) {
+                                            applyDirectionToElements(selector, data);
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.error('Error applying settings for selector:', selector, error);
+                                }
+                            });
+                        }
+                    });
                 });
             }
         });
     });
+
+    try {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        console.log('Observer started successfully');
+    } catch (error) {
+        console.error('Error starting observer:', error);
+    }
+}
+
+// Make sure we initialize at the right time
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeSettings();
+        initializeObserver();
+    });
+} else {
+    // Document already loaded
+    initializeSettings();
+    initializeObserver();
+}
+
+// Also handle dynamic changes to the page
+document.addEventListener('load', () => {
+    initializeSettings();
 });
 
 /**
