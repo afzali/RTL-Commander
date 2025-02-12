@@ -492,6 +492,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         showAdvancedPanel(lastClickedElement);
     }
+    else if (request.action === "confirmClearSettings") {
+        // Show confirmation dialog
+        if (confirm('Are you sure you want to delete all saved settings?')) {
+            // Send confirmation back to background script
+            chrome.runtime.sendMessage({
+                action: "clearSettingsConfirmed"
+            });
+        }
+    }
     else if (request.action === "settingsCleared") {
         console.log('Clearing all direction settings');
         const currentDomain = getCurrentDomain();

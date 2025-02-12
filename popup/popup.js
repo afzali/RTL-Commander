@@ -55,32 +55,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                 button.addEventListener('click', async (e) => {
                     const selector = e.target.dataset.selector;
                     
-                    // Remove from storage
-                    const domain = await getCurrentTabDomain();
-                    chrome.storage.local.get(domain, (items) => {
-                        const domainData = items[domain];
-                        if (domainData && domainData.selectors) {
-                            delete domainData.selectors[selector];
-                            
-                            // If no more selectors, remove the domain entry
-                            if (Object.keys(domainData.selectors).length === 0) {
-                                chrome.storage.local.remove(domain);
-                            } else {
-                                chrome.storage.local.set({ [domain]: domainData });
-                            }
-                            
-                            // Remove from current tab
-                            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                                chrome.tabs.sendMessage(tabs[0].id, {
-                                    action: "removeDirection",
-                                    selector: selector
+                    // Show confirmation dialog before removing
+                    const userConfirmed = confirm('Are you sure you want to delete this setting?');
+                    
+                    // Only proceed if user confirmed
+                    if (userConfirmed === true) {
+                        // Remove from storage
+                        const domain = await getCurrentTabDomain();
+                        chrome.storage.local.get(domain, (items) => {
+                            const domainData = items[domain];
+                            if (domainData && domainData.selectors) {
+                                delete domainData.selectors[selector];
+                                
+                                // If no more selectors, remove the domain entry
+                                if (Object.keys(domainData.selectors).length === 0) {
+                                    chrome.storage.local.remove(domain);
+                                } else {
+                                    chrome.storage.local.set({ [domain]: domainData });
+                                }
+                                
+                                // Remove from current tab
+                                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                                    chrome.tabs.sendMessage(tabs[0].id, {
+                                        action: "removeDirection",
+                                        selector: selector
+                                    });
                                 });
-                            });
-                            
-                            // Refresh the list
-                            loadSavedElements();
-                        }
-                    });
+                                
+                                // Refresh the list
+                                loadSavedElements();
+                            }
+                        });
+                    }
                 });
             });
 
@@ -116,17 +122,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Clear all settings for current domain
     document.getElementById('clear-all').addEventListener('click', async () => {
         const domain = await getCurrentTabDomain();
-        chrome.storage.local.remove(domain, () => {
-            // Notify content script
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    action: "settingsCleared"
+        
+        // Show confirmation dialog with clear message
+        const userConfirmed = confirm('Are you sure you want to delete all saved settings?');
+        
+        // Only proceed if user confirmed
+        if (userConfirmed === true) {
+            chrome.storage.local.remove(domain, () => {
+                // Notify content script
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        action: "settingsCleared"
+                    });
                 });
+                
+                // Refresh the list
+                loadSavedElements();
             });
-            
-            // Refresh the list
-            loadSavedElements();
-        });
+        }
     });
 
     // Initial load

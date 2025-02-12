@@ -57,16 +57,13 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       }
     });
   } else if (info.menuItemId === "clearSettings") {
-    // Clear settings and notify content script
-    console.log('Clearing saved settings');
-    chrome.storage.local.clear(() => {
-      chrome.tabs.sendMessage(tab.id, {
-        action: "settingsCleared"
-      }, response => {
-        if (chrome.runtime.lastError) {
-          console.error('Error:', chrome.runtime.lastError);
-        }
-      });
+    // Send message to content script to show confirmation dialog
+    chrome.tabs.sendMessage(tab.id, {
+      action: "confirmClearSettings"
+    }, response => {
+      if (chrome.runtime.lastError) {
+        console.error('Error:', chrome.runtime.lastError);
+      }
     });
   }
 });
@@ -87,6 +84,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       } else {
         console.log('Settings saved successfully');
       }
+    });
+  } else if (request.action === "clearSettingsConfirmed") {
+    // Clear settings and notify content script
+    console.log('Clearing saved settings');
+    chrome.storage.local.clear(() => {
+      chrome.tabs.sendMessage(sender.tab.id, {
+        action: "settingsCleared"
+      }, response => {
+        if (chrome.runtime.lastError) {
+          console.error('Error:', chrome.runtime.lastError);
+        }
+      });
     });
   }
 });
