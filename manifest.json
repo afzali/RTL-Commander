@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "RTL-LTR Text Direction Controller",
+  "name": "RTL Commander",
   "version": "1.0",
-  "description": "Toggle text direction between RTL and LTR for any webpage element",
+  "description": "Powerful RTL/LTR text direction controller for any webpage element",
   "permissions": [
     "contextMenus",
     "storage",
