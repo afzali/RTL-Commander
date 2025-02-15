@@ -1,7 +1,23 @@
-<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-  <rect width="128" height="128" rx="20" fill="#4A90E2"/>
-  <path d="M40 64L50 54V74L40 64Z" fill="white"/>
-  <path d="M88 64L78 54V74L88 64Z" fill="white"/>
-  <text x="64" y="50" font-family="Arial" font-size="20" fill="white" text-anchor="middle">A</text>
-  <text x="64" y="80" font-family="Arial" font-size="20" fill="white" text-anchor="middle">ب</text>
+<svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+	<title>logo</title>
+	<style>
+		tspan { white-space:pre } 
+		.s0 { fill: #4a90e2 } 
+		.s1 { fill: #ffffff } 
+		.t2 { font-size: 20px;fill: #ffffff;font-family: "Arial" } 
+		.t3 { font-size: 22px;line-height: 22px;fill: #ffffff;font-weight: 400;font-family: "Vazirmatn-Regular", "Vazirmatn" } 
+	</style>
+	<g id="Layer 1">
+		<path class="s0" d="m20 0h88c11 0 20 9 20 20v88c0 11-9 20-20 20h-88c-11 0-20-9-20-20v-88c0-11 9-20 20-20z"/>
+		<path class="s1" d="m19 68.3l18.8-18.8v37.5z"/>
+		<path class="s1" d="m109 68.3l-18.7-18.8v37.5z"/>
+		<text id="L" style="transform: matrix(1.876,0,0,1.876,64.017,42.017)" >
+			<tspan x="-5.6" y="0" class="t2">L
+</tspan>
+		</text>
+		<text id="ر" style="transform: matrix(1.876,0,0,1.876,64,97.973)" >
+			<tspan x="-3.8" y="0" class="t3">ر</tspan><tspan  y="0" class="t3">
+</tspan>
+		</text>
+	</g>
 </svg>
