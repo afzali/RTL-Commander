@@ -84,65 +84,85 @@ function applyDirectionToElements(selector, data) {
 
         // Find all matching elements
         const elements = document.querySelectorAll(selector);
-        if (elements.length === 0) return;
-
-        // Create or get style block for this selector
-        let styleBlock = document.getElementById(`rtl-ltr-style-${btoa(selector)}`);
-        if (!styleBlock) {
-            styleBlock = document.createElement('style');
-            styleBlock.id = `rtl-ltr-style-${btoa(selector)}`;
-            document.head.appendChild(styleBlock);
+        if (elements.length === 0) {
+            console.log('No elements found for selector:', selector);
+            return;
         }
 
-        elements.forEach(element => {
-            // Skip if element is already being processed
-            if (element.hasAttribute('data-rtl-processing')) {
-                return;
-            }
-
-            // Store original direction if not already stored
-            if (!element.hasAttribute('data-original-direction')) {
-                element.setAttribute('data-original-direction', getComputedStyle(element).direction || 'ltr');
-            }
-
-            // Only apply if enabled
-            if (data.enabled !== false) {
-                // Add class for styling
-                element.classList.add('rtl-extension-modified');
-                
-                // Create CSS rule
-                let cssRule = `${selector} { direction: ${data.direction} !important;`;
-                
-                // Add custom CSS if provided
-                if (data.customCSS) {
-                    try {
-                        // Parse and add each CSS property
-                        const cssProperties = data.customCSS.split(';')
-                            .filter(prop => prop.trim())
-                            .map(prop => {
-                                const [key, value] = prop.split(':').map(s => s.trim());
-                                return key && value ? `${key}: ${value} !important;` : '';
-                            })
-                            .join(' ');
-                        cssRule += ` ${cssProperties}`;
-                    } catch (cssError) {
-                        console.error('Error parsing custom CSS:', cssError);
-                    }
-                }
-                
-                cssRule += ' }';
-                
-                // Apply the CSS rule
-                styleBlock.textContent = cssRule;
-            }
+        console.log('Applying direction to elements:', {
+            selector,
+            data,
+            elementsFound: elements.length
         });
+
+        // Create unique style ID for this selector
+        const styleId = `rtl-ltr-style-${btoa(selector)}`;
+        
+        // Remove existing style block if any
+        const existingStyle = document.getElementById(styleId);
+        if (existingStyle) {
+            existingStyle.remove();
+        }
+
+        // Create new style block
+        const styleBlock = document.createElement('style');
+        styleBlock.id = styleId;
+
+        // Only apply if enabled
+        if (data.enabled !== false) {
+            // Create CSS rule
+            let cssRule = `${selector} {`;
+            
+            // Add direction
+            if (data.direction) {
+                cssRule += ` direction: ${data.direction} !important;`;
+            }
+            
+            // Add custom CSS if provided
+            if (data.customCSS) {
+                try {
+                    // Parse and add each CSS property
+                    const cssProperties = data.customCSS.split(';')
+                        .filter(prop => prop.trim())
+                        .map(prop => {
+                            const [key, value] = prop.split(':').map(s => s.trim());
+                            return key && value ? `${key}: ${value} !important;` : '';
+                        })
+                        .join(' ');
+                    cssRule += ` ${cssProperties}`;
+                } catch (cssError) {
+                    console.error('Error parsing custom CSS:', cssError);
+                }
+            }
+            
+            cssRule += ' }';
+            
+            console.log('Applying CSS rule:', cssRule);
+            
+            // Apply the CSS rule
+            styleBlock.textContent = cssRule;
+            document.head.appendChild(styleBlock);
+
+            // Add class and data attributes to elements
+            elements.forEach(element => {
+                // Store original direction if not already stored
+                if (!element.hasAttribute('data-original-direction')) {
+                    element.setAttribute('data-original-direction', getComputedStyle(element).direction || 'ltr');
+                }
+                element.classList.add('rtl-extension-modified');
+                element.setAttribute('data-rtl-selector', selector);
+            });
+        }
 
         // Show notification only for user-initiated changes
         if (!window.suppressNotifications) {
             showNotification(`Direction ${data.enabled !== false ? 'applied' : 'removed'} for ${elements.length} elements`);
         }
     } catch (error) {
-        console.error('Error in applyDirectionToElements:', error);
+        console.error('Error in applyDirectionToElements:', error, {
+            selector,
+            data
+        });
         showNotification('Error applying direction: ' + error.message, 'error');
     }
 }
@@ -153,51 +173,165 @@ function applyDirectionToElements(selector, data) {
  */
 function removeDirectionFromElements(selector) {
     try {
+        // Remove style block
+        const styleId = `rtl-ltr-style-${btoa(selector)}`;
+        const styleBlock = document.getElementById(styleId);
+        if (styleBlock) {
+            styleBlock.remove();
+        }
+
+        // Reset elements
         const elements = document.querySelectorAll(selector);
         elements.forEach(element => {
-            // Remove our custom class
             element.classList.remove('rtl-extension-modified');
+            element.removeAttribute('data-rtl-selector');
             
             // Restore original direction if it was stored
             const originalDirection = element.getAttribute('data-original-direction');
             if (originalDirection) {
+                element.style.direction = originalDirection;
                 element.removeAttribute('data-original-direction');
             }
         });
 
-        // Remove style block if exists
-        const styleBlock = document.getElementById(`rtl-ltr-style-${btoa(selector)}`);
-        if (styleBlock) {
-            styleBlock.remove();
-        }
+        console.log('Removed direction from elements:', {
+            selector,
+            elementsAffected: elements.length
+        });
     } catch (error) {
-        console.error('Error in removeDirectionFromElements:', error);
-        showNotification('Error removing direction: ' + error.message, 'error');
+        console.error('Error in removeDirectionFromElements:', error, {
+            selector
+        });
     }
 }
 
-// Initialize when page loads
-function initializeSettings() {
-    chrome.storage.local.get(window.location.hostname, (items) => {
+/**
+ * Saves the direction settings for a selector in the current domain
+ * @param {string} selector - CSS selector to save settings for
+ * @param {string} direction - Text direction ('rtl' or 'ltr')
+ * @param {string} customCSS - Custom CSS properties
+ */
+function saveSelectorSettings(selector, direction, customCSS) {
+    // Check if extension context is still valid
+    if (!chrome.runtime?.id) {
+        console.warn('Extension context invalidated before storage operation');
+        return;
+    }
+
+    const domain = getCurrentDomain();
+    console.log('Saving settings for domain:', domain, 'selector:', selector);
+
+    // Ensure selector is a valid string
+    if (!selector || typeof selector !== 'string') {
+        console.error('Invalid selector:', selector);
+        return;
+    }
+
+    chrome.storage.local.get([domain], (result) => {
         if (chrome.runtime.lastError) {
             console.error('Storage error:', chrome.runtime.lastError);
             return;
         }
 
-        const domainData = items[window.location.hostname];
-        if (domainData && domainData.selectors) {
-            Object.entries(domainData.selectors).forEach(([selector, data]) => {
-                try {
-                    if (data.enabled !== false) {
-                        applyDirectionToElements(selector, data);
-                    }
-                } catch (error) {
-                    console.error('Error applying settings for selector:', selector, error);
+        try {
+            // Initialize domain data if it doesn't exist
+            let domainData = result[domain] || {};
+            if (!domainData.selectors) {
+                domainData.selectors = {};
+            }
+
+            // Create or update the selector settings
+            domainData.selectors[selector] = {
+                direction: direction,
+                customCSS: customCSS || '',
+                enabled: true,
+                timestamp: new Date().getTime()
+            };
+
+            // Save the updated settings
+            const dataToSave = { [domain]: domainData };
+            console.log('Saving data:', dataToSave);
+
+            chrome.storage.local.set(dataToSave, () => {
+                if (chrome.runtime.lastError) {
+                    console.error('Failed to save settings:', chrome.runtime.lastError);
+                    return;
                 }
+                console.log('Settings saved successfully for:', selector);
+                // Apply the settings immediately
+                applyDirectionToElements(selector, domainData.selectors[selector]);
             });
+        } catch (error) {
+            console.error('Error while saving settings:', error);
         }
     });
 }
+
+// Initialize when page loads
+function initializeSettings() {
+    // Check if extension context is still valid
+    if (!chrome.runtime?.id) {
+        console.warn('Extension context is invalid. Please refresh the page.');
+        return;
+    }
+
+    const domain = getCurrentDomain();
+    console.log('Initializing settings for domain:', domain);
+
+    chrome.storage.local.get([domain], (result) => {
+        if (chrome.runtime.lastError) {
+            console.error('Storage error:', chrome.runtime.lastError);
+            return;
+        }
+
+        try {
+            const domainData = result[domain];
+            console.log('Retrieved settings:', domainData);
+
+            if (domainData && domainData.selectors) {
+                Object.entries(domainData.selectors).forEach(([selector, data]) => {
+                    try {
+                        if (data.enabled !== false) {
+                            console.log('Applying settings for selector:', selector, data);
+                            applyDirectionToElements(selector, {
+                                direction: data.direction,
+                                customCSS: data.customCSS || ''
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error applying settings for selector:', selector, error);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error while initializing settings:', error);
+        }
+    });
+}
+
+// Make sure we initialize at the right time
+function initializeExtension() {
+    console.log('Initializing RTL Commander extension...');
+    
+    // Initialize immediately and also after DOM is ready
+    initializeSettings();
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSettings();
+            initializeObserver();
+        });
+    } else {
+        initializeObserver();
+    }
+}
+
+// Start initialization
+initializeExtension();
+
+// Handle SPA navigation
+window.addEventListener('popstate', initializeSettings);
+window.addEventListener('hashchange', initializeSettings);
 
 // Initialize observer for dynamic content
 function initializeObserver() {
@@ -278,23 +412,6 @@ function initializeObserver() {
         console.error('Error starting observer:', error);
     }
 }
-
-// Make sure we initialize at the right time
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        initializeSettings();
-        initializeObserver();
-    });
-} else {
-    // Document already loaded
-    initializeSettings();
-    initializeObserver();
-}
-
-// Also handle dynamic changes to the page
-document.addEventListener('load', () => {
-    initializeSettings();
-});
 
 /**
  * Shows the advanced panel with overlay
@@ -540,37 +657,6 @@ function closeAdvancedPanel() {
 }
 
 /**
- * Saves the direction settings for a selector in the current domain
- * @param {string} selector - CSS selector to save settings for
- * @param {string} direction - Text direction ('rtl' or 'ltr')
- * @param {string} customCSS - Custom CSS properties
- */
-function saveSelectorSettings(selector, direction, customCSS) {
-    const domain = getCurrentDomain();
-    chrome.storage.local.get(domain, (items) => {
-        const domainData = items[domain] || { selectors: {} };
-        
-        domainData.selectors[selector] = {
-            direction: direction,
-            customCSS: customCSS,
-            lastUpdated: new Date().toISOString(),
-            enabled: true
-        };
-        
-        chrome.storage.local.set({
-            [domain]: domainData
-        }, () => {
-            console.log('Saved direction settings:', {
-                domain,
-                selector,
-                direction,
-                customCSS
-            });
-        });
-    });
-}
-
-/**
  * Toggles direction for the whole page
  * Saves the setting in storage and applies it to body and all its children
  */
@@ -606,118 +692,161 @@ function toggleWholePage() {
 /**
  * Handles messages from the background script
  */
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log('Content script received message:', request);
-
-    if (request.action === "toggleWholePage") {
-        toggleWholePage();
-    }
-    else if (request.action === "toggleDirection") {
-        // Handle enable/disable toggle from popup
-        if (request.hasOwnProperty('enabled')) {
-            const domain = getCurrentDomain();
-            chrome.storage.local.get(domain, (items) => {
-                const domainData = items[domain];
-                if (domainData && domainData.selectors && domainData.selectors[request.selector]) {
-                    const data = domainData.selectors[request.selector];
-                    data.enabled = request.enabled;
-                    applyDirectionToElements(request.selector, data);
-                }
-            });
-        }
-        // Handle normal direction toggle from context menu
-        else {
-            if (!lastClickedElement) {
-                console.warn('No element was right-clicked!');
-                return;
-            }
-            
-            const element = lastClickedElement;
-            console.log('Toggling direction for element:', {
-                tagName: element.tagName,
-                id: element.id,
-                currentDirection: getComputedStyle(element).direction
-            });
-
-            const currentDirection = getComputedStyle(element).direction;
-            const newDirection = currentDirection === 'rtl' ? 'ltr' : 'rtl';
-            const selector = getCssSelector(element);
-            
-            // Create data object for the element
-            const data = {
-                direction: newDirection,
-                customCSS: '',
-                enabled: true
-            };
-            
-            // Apply the direction change
-            applyDirectionToElements(selector, data);
-            
-            // Save the settings
-            saveSelectorSettings(selector, newDirection, '');
-        }
-    }
-    else if (request.action === "showAdvancedToggle") {
-        if (!lastClickedElement) {
-            console.warn('No element was right-clicked!');
+// Check extension context before setting up message listener
+if (chrome.runtime?.id) {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        // Check if extension is still valid before processing message
+        if (!chrome.runtime?.id) {
+            console.warn('Extension context invalidated during message processing');
             return;
         }
-        showAdvancedPanel(lastClickedElement);
-    }
-    else if (request.action === "updateSettings") {
-        // Update direction and custom CSS for the specified selector
-        const data = {
-            direction: request.direction,
-            customCSS: request.customCSS,
-            enabled: true
-        };
-        
-        // Apply the updated settings immediately
-        applyDirectionToElements(request.selector, data);
-    }
-    else if (request.action === "removeDirection") {
-        // Remove direction and custom CSS from the specified selector
-        removeDirectionFromElements(request.selector);
-    }
-    else if (request.action === "confirmClearSettings") {
-        // Show confirmation dialog
-        if (confirm('Are you sure you want to delete all saved settings?')) {
-            // Send confirmation back to background script
-            chrome.runtime.sendMessage({
-                action: "clearSettingsConfirmed"
-            });
-        }
-    }
-    else if (request.action === "settingsCleared") {
-        console.log('Clearing all direction settings');
-        const currentDomain = getCurrentDomain();
-        // Remove domain settings
-        chrome.storage.local.remove(currentDomain, () => {
-            // Remove all custom directions from the page
-            const elements = document.querySelectorAll('[style*="direction"]');
-            elements.forEach(element => {
-                element.style.removeProperty('direction');
-                element.removeAttribute('dir');
-            });
-            
-            // Show notification
-            const notification = document.createElement('div');
-            notification.className = 'rtl-ltr-notification';
-            notification.textContent = `All saved direction settings for ${currentDomain} have been cleared`;
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
-        });
-    }
-    else if (request.action === "addVazirFont") {
-        toggleVazirFont();
-    }
 
-    // Always send a response
-    sendResponse({ received: true });
-});
+        console.log('Content script received message:', request);
+
+        try {
+            if (request.action === "toggleWholePage") {
+                toggleWholePage();
+            }
+            else if (request.action === "toggleDirection") {
+                // Handle enable/disable toggle from popup
+                if (request.hasOwnProperty('enabled')) {
+                    const domain = getCurrentDomain();
+                    
+                    // Check extension context again before storage operation
+                    if (!chrome.runtime?.id) {
+                        console.warn('Extension context invalidated before storage operation');
+                        return;
+                    }
+
+                    chrome.storage.local.get(domain, (items) => {
+                        if (chrome.runtime.lastError) {
+                            console.error('Storage error:', chrome.runtime.lastError);
+                            return;
+                        }
+
+                        // Check extension context again after storage operation
+                        if (!chrome.runtime?.id) {
+                            console.warn('Extension context invalidated after storage operation');
+                            return;
+                        }
+
+                        const domainData = items[domain];
+                        if (domainData && domainData.selectors && domainData.selectors[request.selector]) {
+                            const data = domainData.selectors[request.selector];
+                            data.enabled = request.enabled;
+                            
+                            // Wrap storage operation in try-catch
+                            try {
+                                chrome.storage.local.set({ [domain]: domainData }, () => {
+                                    if (chrome.runtime.lastError) {
+                                        console.error('Failed to save settings:', chrome.runtime.lastError);
+                                        return;
+                                    }
+                                    applyDirectionToElements(request.selector, data);
+                                });
+                            } catch (error) {
+                                console.error('Error saving settings:', error);
+                            }
+                        }
+                    });
+                }
+                // Handle normal direction toggle from context menu
+                else {
+                    if (!lastClickedElement) {
+                        console.warn('No element was right-clicked!');
+                        return;
+                    }
+                    
+                    const element = lastClickedElement;
+                    console.log('Toggling direction for element:', {
+                        tagName: element.tagName,
+                        id: element.id,
+                        currentDirection: getComputedStyle(element).direction
+                    });
+
+                    const currentDirection = getComputedStyle(element).direction;
+                    const newDirection = currentDirection === 'rtl' ? 'ltr' : 'rtl';
+                    const selector = getCssSelector(element);
+                    
+                    // Create data object for the element
+                    const data = {
+                        direction: newDirection,
+                        customCSS: '',
+                        enabled: true
+                    };
+                    
+                    // Apply the direction change
+                    applyDirectionToElements(selector, data);
+                    
+                    // Save the settings
+                    saveSelectorSettings(selector, newDirection, '');
+                }
+            }
+            else if (request.action === "showAdvancedToggle") {
+                if (!lastClickedElement) {
+                    console.warn('No element was right-clicked!');
+                    return;
+                }
+                showAdvancedPanel(lastClickedElement);
+            }
+            else if (request.action === "updateSettings") {
+                // Update direction and custom CSS for the specified selector
+                const data = {
+                    direction: request.direction,
+                    customCSS: request.customCSS,
+                    enabled: true
+                };
+                
+                // Apply the updated settings immediately
+                applyDirectionToElements(request.selector, data);
+            }
+            else if (request.action === "removeDirection") {
+                // Remove direction and custom CSS from the specified selector
+                removeDirectionFromElements(request.selector);
+            }
+            else if (request.action === "confirmClearSettings") {
+                // Show confirmation dialog
+                if (confirm('Are you sure you want to delete all saved settings?')) {
+                    // Send confirmation back to background script
+                    chrome.runtime.sendMessage({
+                        action: "clearSettingsConfirmed"
+                    });
+                }
+            }
+            else if (request.action === "settingsCleared") {
+                console.log('Clearing all direction settings');
+                const currentDomain = getCurrentDomain();
+                // Remove domain settings
+                chrome.storage.local.remove(currentDomain, () => {
+                    // Remove all custom directions from the page
+                    const elements = document.querySelectorAll('[style*="direction"]');
+                    elements.forEach(element => {
+                        element.style.removeProperty('direction');
+                        element.removeAttribute('dir');
+                    });
+                    
+                    // Show notification
+                    const notification = document.createElement('div');
+                    notification.className = 'rtl-ltr-notification';
+                    notification.textContent = `All saved direction settings for ${currentDomain} have been cleared`;
+                    document.body.appendChild(notification);
+                    
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 3000);
+                });
+            }
+            else if (request.action === "addVazirFont") {
+                toggleVazirFont();
+            }
+
+            // Always send a response
+            sendResponse({ received: true });
+        } catch (error) {
+            console.error('Error handling message:', error);
+        }
+    });
+}
 
 /**
  * Creates a font application preference dialog
