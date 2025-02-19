@@ -95,6 +95,11 @@ function applyDirectionToElements(selector, data) {
         }
 
         elements.forEach(element => {
+            // Skip if element is already being processed
+            if (element.hasAttribute('data-rtl-processing')) {
+                return;
+            }
+
             // Store original direction if not already stored
             if (!element.hasAttribute('data-original-direction')) {
                 element.setAttribute('data-original-direction', getComputedStyle(element).direction || 'ltr');
@@ -132,8 +137,10 @@ function applyDirectionToElements(selector, data) {
             }
         });
 
-        // Show notification
-        showNotification(`Direction ${data.enabled !== false ? 'applied' : 'removed'} for ${elements.length} elements`);
+        // Show notification only for user-initiated changes
+        if (!window.suppressNotifications) {
+            showNotification(`Direction ${data.enabled !== false ? 'applied' : 'removed'} for ${elements.length} elements`);
+        }
     } catch (error) {
         console.error('Error in applyDirectionToElements:', error);
         showNotification('Error applying direction: ' + error.message, 'error');
@@ -201,45 +208,70 @@ function initializeObserver() {
     }
 
     const observer = new MutationObserver((mutations) => {
-        chrome.storage.local.get(window.location.hostname, (items) => {
-            if (chrome.runtime.lastError) {
-                console.error('Storage error:', chrome.runtime.lastError);
-                return;
-            }
+        // Debounce the processing of mutations
+        if (window.rtlObserverTimeout) {
+            clearTimeout(window.rtlObserverTimeout);
+        }
 
-            const domainData = items[window.location.hostname];
-            if (domainData && domainData.selectors) {
-                mutations.forEach(mutation => {
-                    mutation.addedNodes.forEach(node => {
-                        if (node.nodeType === Node.ELEMENT_NODE) {
-                            Object.entries(domainData.selectors).forEach(([selector, data]) => {
-                                try {
-                                    if (data.enabled !== false) {
-                                        // Check if the new node matches our selector
-                                        if (node.matches && node.matches(selector)) {
-                                            applyDirectionToElements(selector, data);
+        window.rtlObserverTimeout = setTimeout(() => {
+            chrome.storage.local.get(window.location.hostname, (items) => {
+                if (chrome.runtime.lastError) {
+                    console.error('Storage error:', chrome.runtime.lastError);
+                    return;
+                }
+
+                const domainData = items[window.location.hostname];
+                if (domainData && domainData.selectors) {
+                    // Suppress notifications during observer updates
+                    window.suppressNotifications = true;
+
+                    mutations.forEach(mutation => {
+                        mutation.addedNodes.forEach(node => {
+                            if (node.nodeType === Node.ELEMENT_NODE) {
+                                Object.entries(domainData.selectors).forEach(([selector, data]) => {
+                                    try {
+                                        if (data.enabled !== false) {
+                                            // Check if the new node matches our selector
+                                            if (node.matches && node.matches(selector)) {
+                                                // Skip if the node is already being processed
+                                                if (!node.hasAttribute('data-rtl-processing')) {
+                                                    node.setAttribute('data-rtl-processing', 'true');
+                                                    applyDirectionToElements(selector, data);
+                                                    node.removeAttribute('data-rtl-processing');
+                                                }
+                                            }
+                                            // Check children of the new node
+                                            const matches = node.querySelectorAll(selector);
+                                            if (matches.length > 0) {
+                                                matches.forEach(match => {
+                                                    if (!match.hasAttribute('data-rtl-processing')) {
+                                                        match.setAttribute('data-rtl-processing', 'true');
+                                                        applyDirectionToElements(selector, data);
+                                                        match.removeAttribute('data-rtl-processing');
+                                                    }
+                                                });
+                                            }
                                         }
-                                        // Check children of the new node
-                                        const matches = node.querySelectorAll(selector);
-                                        if (matches.length > 0) {
-                                            applyDirectionToElements(selector, data);
-                                        }
+                                    } catch (error) {
+                                        console.error('Error applying settings for selector:', selector, error);
                                     }
-                                } catch (error) {
-                                    console.error('Error applying settings for selector:', selector, error);
-                                }
-                            });
-                        }
+                                });
+                            }
+                        });
                     });
-                });
-            }
-        });
+
+                    // Re-enable notifications after processing
+                    window.suppressNotifications = false;
+                }
+            });
+        }, 100); // Debounce for 100ms
     });
 
     try {
         observer.observe(document.body, {
             childList: true,
-            subtree: true
+            subtree: true,
+            characterData: false // Don't observe text content changes
         });
         console.log('Observer started successfully');
     } catch (error) {
