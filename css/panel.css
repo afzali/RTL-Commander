@@ -289,3 +289,8 @@
 #rtl-ltr-selector-panel button:hover {
     background: #3367d6;
 }
+
+
+textarea, input {
+    background: white;
+}

@@ -29,6 +29,15 @@ A powerful Chrome extension for managing RTL (Right-to-Left) and LTR (Left-to-Ri
 - Visual feedback through notifications
 - Edit dialog for modifying saved settings
 
+## Recent Updates
+
+### Version 1.1
+- **Fixed**: RTL settings now correctly apply on page load without requiring manual toggling
+- **Improved**: Enhanced CSS application to ensure RTL/LTR styles take precedence over existing page styles
+- **Added**: Multiple initialization points to handle dynamic content loading
+- **Enhanced**: Better cleanup of styles when toggling RTL/LTR settings
+- **Improved**: MutationObserver now watches for attribute changes that might affect text direction
+
 ## How to Use
 
 ### Basic Usage

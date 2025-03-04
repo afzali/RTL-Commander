@@ -51,58 +51,86 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+/**
+ * Sends a message to a tab with retry mechanism
+ * @param {number} tabId - The ID of the tab to send the message to
+ * @param {Object} message - The message to send
+ * @param {Function} callback - Callback function to execute after sending
+ */
+function sendMessageWithRetry(tabId, message, callback) {
+  console.log('Sending message to tab:', tabId, message);
+  
+  chrome.tabs.sendMessage(tabId, message, response => {
+    if (chrome.runtime.lastError) {
+      console.error('Error:', chrome.runtime.lastError);
+      
+      // If connection failed, try to reload the content script
+      if (chrome.runtime.lastError.message.includes('Receiving end does not exist')) {
+        console.log('Content script connection lost. Attempting to reload content script...');
+        
+        // Execute the content script again in the tab
+        chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['content.js']
+        }, () => {
+          if (chrome.runtime.lastError) {
+            console.error('Failed to reload content script:', chrome.runtime.lastError);
+            if (callback) callback(null);
+          } else {
+            console.log('Content script reloaded successfully. Retrying message...');
+            // Wait a moment for the script to initialize
+            setTimeout(() => {
+              chrome.tabs.sendMessage(tabId, message, secondResponse => {
+                if (chrome.runtime.lastError) {
+                  console.error('Retry failed:', chrome.runtime.lastError);
+                } else {
+                  console.log('Retry successful');
+                }
+                if (callback) callback(secondResponse);
+              });
+            }, 500);
+          }
+        });
+      } else if (callback) {
+        callback(null);
+      }
+    } else {
+      console.log('Message sent successfully');
+      if (callback) callback(response);
+    }
+  });
+}
+
 // Handle context menu clicks
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   console.log('Menu clicked:', info.menuItemId);
   
   if (info.menuItemId === "toggleWholePage") {
     // Send toggle whole page message to content script
-    chrome.tabs.sendMessage(tab.id, {
+    sendMessageWithRetry(tab.id, {
       action: "toggleWholePage"
-    }, response => {
-      if (chrome.runtime.lastError) {
-        console.error('Error:', chrome.runtime.lastError);
-      }
     });
   } else if (info.menuItemId === "addVazirFont") {
     // Send add Vazir font message to content script
-    chrome.tabs.sendMessage(tab.id, {
+    sendMessageWithRetry(tab.id, {
       action: "addVazirFont"
-    }, response => {
-      if (chrome.runtime.lastError) {
-        console.error('Error:', chrome.runtime.lastError);
-      }
     });
   } else if (info.menuItemId === "toggleDirection") {
     // Send simple toggle message to content script
     console.log('Sending toggleDirection message to tab:', tab.id);
-    chrome.tabs.sendMessage(tab.id, {
+    sendMessageWithRetry(tab.id, {
       action: "toggleDirection"
-    }, response => {
-      if (chrome.runtime.lastError) {
-        console.error('Error:', chrome.runtime.lastError);
-      } else {
-        console.log('Message sent successfully');
-      }
     });
   } else if (info.menuItemId === "toggleDirectionAdvanced") {
     // Send advanced toggle message to content script
     console.log('Sending showAdvancedToggle message to tab:', tab.id);
-    chrome.tabs.sendMessage(tab.id, {
+    sendMessageWithRetry(tab.id, {
       action: "showAdvancedToggle"
-    }, response => {
-      if (chrome.runtime.lastError) {
-        console.error('Error:', chrome.runtime.lastError);
-      }
     });
   } else if (info.menuItemId === "clearSettings") {
     // Send message to content script to show confirmation dialog
-    chrome.tabs.sendMessage(tab.id, {
+    sendMessageWithRetry(tab.id, {
       action: "confirmClearSettings"
-    }, response => {
-      if (chrome.runtime.lastError) {
-        console.error('Error:', chrome.runtime.lastError);
-      }
     });
   }
 });
@@ -128,12 +156,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Clear settings and notify content script
     console.log('Clearing saved settings');
     chrome.storage.local.clear(() => {
-      chrome.tabs.sendMessage(sender.tab.id, {
+      sendMessageWithRetry(sender.tab.id, {
         action: "settingsCleared"
-      }, response => {
-        if (chrome.runtime.lastError) {
-          console.error('Error:', chrome.runtime.lastError);
-        }
       });
     });
   }

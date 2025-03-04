@@ -104,18 +104,27 @@ function applyDirectionToElements(selector, data) {
             existingStyle.remove();
         }
 
-        // Create new style block
-        const styleBlock = document.createElement('style');
-        styleBlock.id = styleId;
-
         // Only apply if enabled
         if (data.enabled !== false) {
-            // Create CSS rule
-            let cssRule = `${selector} {`;
+            // Create new style block with higher specificity
+            const styleBlock = document.createElement('style');
+            styleBlock.id = styleId;
+            
+            // Create CSS rule with higher specificity by repeating the selector
+            let cssRule = `${selector}, ${selector}, ${selector} {`;
             
             // Add direction
             if (data.direction) {
                 cssRule += ` direction: ${data.direction} !important;`;
+                
+                // Add text alignment based on direction if not specified in custom CSS
+                if (!data.customCSS || !data.customCSS.includes('text-align')) {
+                    if (data.direction === 'rtl') {
+                        cssRule += ` text-align: right !important;`;
+                    } else if (data.direction === 'ltr') {
+                        cssRule += ` text-align: left !important;`;
+                    }
+                }
             }
             
             // Add custom CSS if provided
@@ -143,14 +152,46 @@ function applyDirectionToElements(selector, data) {
             styleBlock.textContent = cssRule;
             document.head.appendChild(styleBlock);
 
-            // Add class and data attributes to elements
+            // Add class and data attributes to elements and apply inline styles as backup
             elements.forEach(element => {
                 // Store original direction if not already stored
                 if (!element.hasAttribute('data-original-direction')) {
                     element.setAttribute('data-original-direction', getComputedStyle(element).direction || 'ltr');
                 }
+                
+                // Add class for easier identification
                 element.classList.add('rtl-extension-modified');
                 element.setAttribute('data-rtl-selector', selector);
+                
+                // Apply inline styles as a backup for elements that might have higher specificity styles
+                if (data.direction) {
+                    element.style.setProperty('direction', data.direction, 'important');
+                    
+                    // Apply text alignment based on direction if not specified in custom CSS
+                    if (!data.customCSS || !data.customCSS.includes('text-align')) {
+                        if (data.direction === 'rtl') {
+                            element.style.setProperty('text-align', 'right', 'important');
+                        } else if (data.direction === 'ltr') {
+                            element.style.setProperty('text-align', 'left', 'important');
+                        }
+                    }
+                }
+                
+                // Apply custom CSS properties as inline styles
+                if (data.customCSS) {
+                    try {
+                        data.customCSS.split(';')
+                            .filter(prop => prop.trim())
+                            .forEach(prop => {
+                                const [key, value] = prop.split(':').map(s => s.trim());
+                                if (key && value) {
+                                    element.style.setProperty(key, value, 'important');
+                                }
+                            });
+                    } catch (cssError) {
+                        console.error('Error applying inline custom CSS:', cssError);
+                    }
+                }
             });
         }
 
@@ -189,6 +230,20 @@ function removeDirectionFromElements(selector) {
             // Restore original direction if it was stored
             const originalDirection = element.getAttribute('data-original-direction');
             if (originalDirection) {
+                // Remove inline style properties
+                element.style.removeProperty('direction');
+                element.style.removeProperty('text-align');
+                
+                // Clean up any custom CSS properties that might have been applied
+                if (element.hasAttribute('style') && element.getAttribute('style').trim() !== '') {
+                    // Keep the original style attribute but remove our custom properties
+                    // We can't know all possible properties, but we'll remove the common RTL-related ones
+                    element.style.removeProperty('unicode-bidi');
+                    element.style.removeProperty('text-orientation');
+                    element.style.removeProperty('writing-mode');
+                }
+                
+                // Set the original direction back
                 element.style.direction = originalDirection;
                 element.removeAttribute('data-original-direction');
             }
@@ -289,19 +344,34 @@ function initializeSettings() {
             console.log('Retrieved settings:', domainData);
 
             if (domainData && domainData.selectors) {
+                // First remove any existing styles to prevent conflicts
                 Object.entries(domainData.selectors).forEach(([selector, data]) => {
                     try {
                         if (data.enabled !== false) {
-                            console.log('Applying settings for selector:', selector, data);
-                            applyDirectionToElements(selector, {
-                                direction: data.direction,
-                                customCSS: data.customCSS || ''
-                            });
+                            // First remove any existing direction to ensure clean application
+                            removeDirectionFromElements(selector);
                         }
                     } catch (error) {
-                        console.error('Error applying settings for selector:', selector, error);
+                        console.error('Error removing existing styles for selector:', selector, error);
                     }
                 });
+                
+                // Add a small delay to ensure DOM is fully processed
+                setTimeout(() => {
+                    Object.entries(domainData.selectors).forEach(([selector, data]) => {
+                        try {
+                            if (data.enabled !== false) {
+                                console.log('Applying settings for selector:', selector, data);
+                                applyDirectionToElements(selector, {
+                                    direction: data.direction,
+                                    customCSS: data.customCSS || ''
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Error applying settings for selector:', selector, error);
+                        }
+                    });
+                }, 50); // Small delay to ensure DOM is ready
             }
         } catch (error) {
             console.error('Error while initializing settings:', error);
@@ -319,19 +389,22 @@ function initializeExtension() {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             initializeSettings();
+            // Add a second initialization with a delay to catch late-loading elements
+            setTimeout(initializeSettings, 500);
             initializeObserver();
         });
     } else {
+        initializeSettings();
+        // Add a second initialization with a delay to catch late-loading elements
+        setTimeout(initializeSettings, 500);
         initializeObserver();
     }
+    
+    // Add one more initialization after window load event
+    window.addEventListener('load', () => {
+        setTimeout(initializeSettings, 1000);
+    });
 }
-
-// Start initialization
-initializeExtension();
-
-// Handle SPA navigation
-window.addEventListener('popstate', initializeSettings);
-window.addEventListener('hashchange', initializeSettings);
 
 // Initialize observer for dynamic content
 function initializeObserver() {
@@ -359,40 +432,69 @@ function initializeObserver() {
                     // Suppress notifications during observer updates
                     window.suppressNotifications = true;
 
+                    // Check if any significant mutations occurred that might affect our elements
+                    let significantChanges = false;
                     mutations.forEach(mutation => {
-                        mutation.addedNodes.forEach(node => {
-                            if (node.nodeType === Node.ELEMENT_NODE) {
-                                Object.entries(domainData.selectors).forEach(([selector, data]) => {
-                                    try {
-                                        if (data.enabled !== false) {
-                                            // Check if the new node matches our selector
-                                            if (node.matches && node.matches(selector)) {
-                                                // Skip if the node is already being processed
-                                                if (!node.hasAttribute('data-rtl-processing')) {
-                                                    node.setAttribute('data-rtl-processing', 'true');
-                                                    applyDirectionToElements(selector, data);
-                                                    node.removeAttribute('data-rtl-processing');
-                                                }
-                                            }
-                                            // Check children of the new node
-                                            const matches = node.querySelectorAll(selector);
-                                            if (matches.length > 0) {
-                                                matches.forEach(match => {
-                                                    if (!match.hasAttribute('data-rtl-processing')) {
-                                                        match.setAttribute('data-rtl-processing', 'true');
-                                                        applyDirectionToElements(selector, data);
-                                                        match.removeAttribute('data-rtl-processing');
-                                                    }
-                                                });
-                                            }
-                                        }
-                                    } catch (error) {
-                                        console.error('Error applying settings for selector:', selector, error);
-                                    }
-                                });
+                        if (mutation.addedNodes.length > 0 || 
+                            (mutation.type === 'attributes' && 
+                             (mutation.attributeName === 'style' || 
+                              mutation.attributeName === 'class' || 
+                              mutation.attributeName === 'dir'))) {
+                            significantChanges = true;
+                        }
+                    });
+
+                    // If significant changes occurred, reapply all settings
+                    if (significantChanges) {
+                        Object.entries(domainData.selectors).forEach(([selector, data]) => {
+                            try {
+                                if (data.enabled !== false) {
+                                    // First remove any existing direction to ensure clean application
+                                    removeDirectionFromElements(selector);
+                                    // Then apply the direction again
+                                    applyDirectionToElements(selector, data);
+                                }
+                            } catch (error) {
+                                console.error('Error reapplying settings for selector:', selector, error);
                             }
                         });
-                    });
+                    } else {
+                        // Otherwise just process added nodes
+                        mutations.forEach(mutation => {
+                            mutation.addedNodes.forEach(node => {
+                                if (node.nodeType === Node.ELEMENT_NODE) {
+                                    Object.entries(domainData.selectors).forEach(([selector, data]) => {
+                                        try {
+                                            if (data.enabled !== false) {
+                                                // Check if the new node matches our selector
+                                                if (node.matches && node.matches(selector)) {
+                                                    // Skip if the node is already being processed
+                                                    if (!node.hasAttribute('data-rtl-processing')) {
+                                                        node.setAttribute('data-rtl-processing', 'true');
+                                                        applyDirectionToElements(selector, data);
+                                                        node.removeAttribute('data-rtl-processing');
+                                                    }
+                                                }
+                                                // Check children of the new node
+                                                const matches = node.querySelectorAll(selector);
+                                                if (matches.length > 0) {
+                                                    matches.forEach(match => {
+                                                        if (!match.hasAttribute('data-rtl-processing')) {
+                                                            match.setAttribute('data-rtl-processing', 'true');
+                                                            applyDirectionToElements(selector, data);
+                                                            match.removeAttribute('data-rtl-processing');
+                                                        }
+                                                    });
+                                                }
+                                            }
+                                        } catch (error) {
+                                            console.error('Error applying settings for selector:', selector, error);
+                                        }
+                                    });
+                                }
+                            });
+                        });
+                    }
 
                     // Re-enable notifications after processing
                     window.suppressNotifications = false;
@@ -405,6 +507,8 @@ function initializeObserver() {
         observer.observe(document.body, {
             childList: true,
             subtree: true,
+            attributes: true, // Also observe attribute changes
+            attributeFilter: ['style', 'class', 'dir'], // Only these attributes
             characterData: false // Don't observe text content changes
         });
         console.log('Observer started successfully');
@@ -952,7 +1056,7 @@ function toggleVazirFont() {
                     // Apply Vazir font to all elements
                     styleBlock.textContent = `
                         * {
-                            font-family: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif !important;
+                            font-family: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
                         }
                     `;
                     showNotification('Vazir font has been set as the default font');
@@ -990,3 +1094,10 @@ function showNotification(message, type = 'info') {
         notification.remove();
     }, 3000);
 }
+
+// Start initialization
+initializeExtension();
+
+// Handle SPA navigation
+window.addEventListener('popstate', initializeSettings);
+window.addEventListener('hashchange', initializeSettings);
