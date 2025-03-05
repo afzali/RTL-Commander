@@ -3,12 +3,24 @@
  * Stores shared state across all modules
  */
 
-export const state = {
-    // Settings
-    domainSettings: null,
-    styleElement: null,
-    observer: null,
+// Create global state object
+window.rtlState = {
+    // Initialization state
     initialized: false,
     initializationAttempts: 0,
-    MAX_INITIALIZATION_ATTEMPTS: 5
+    MAX_INITIALIZATION_ATTEMPTS: 5,
+    
+    // Observer instance for DOM changes
+    observer: null,
+    
+    // Style element reference
+    styleElement: null,
+    
+    // Domain settings storage
+    domainSettings: {
+        selectors: {}
+    },
+    
+    // Debug mode
+    debug: true
 };

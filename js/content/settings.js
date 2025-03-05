@@ -3,200 +3,376 @@
  * Handles applying and removing settings
  */
 
-import { state } from './state.js';
+// Create global settings object
+window.rtlSettings = {};
+
+/**
+ * Returns the current domain of the page
+ * @returns {string} Current domain (hostname)
+ */
+window.rtlSettings.getCurrentDomain = function() {
+    return window.location.hostname;
+};
 
 /**
  * Apply all saved settings
  */
-export function applyAllSettings() {
-    if (!state.domainSettings || !state.domainSettings.selectors) return;
+window.rtlSettings.applyAllSettings = function() {
+    if (!window.rtlState.domainSettings || !window.rtlState.domainSettings.selectors) return;
     
     // First clean up existing styles
-    cleanupStyles();
+    window.rtlSettings.cleanupStyles();
     
     // Apply each selector's settings
-    Object.entries(state.domainSettings.selectors).forEach(([selector, data]) => {
+    Object.entries(window.rtlState.domainSettings.selectors).forEach(([selector, data]) => {
         if (data.enabled !== false) {
-            applyDirectionToElements(selector, data);
+            window.rtlSettings.applyDirectionToElements(selector, data);
         }
     });
-}
+};
 
 /**
  * Clean up existing styles
  */
-export function cleanupStyles() {
-    if (state.styleElement) {
-        state.styleElement.textContent = '';
+window.rtlSettings.cleanupStyles = function() {
+    if (window.rtlState.styleElement) {
+        window.rtlState.styleElement.textContent = '';
     }
-}
+};
 
 /**
- * Apply direction and custom CSS to elements
+ * Apply direction and custom CSS to elements matching a selector
+ * @param {string} selector - CSS selector to match elements
+ * @param {object} data - Data including direction and custom CSS
  */
-export function applyDirectionToElements(selector, data) {
+window.rtlSettings.applyDirectionToElements = function(selector, data) {
     try {
         const elements = document.querySelectorAll(selector);
         if (elements.length === 0) return;
         
         console.log(`RTL-LTR Controller: Applying ${data.direction} to ${elements.length} elements matching ${selector}`);
         
-        // First remove any existing direction
-        removeDirectionFromElements(selector);
+        // Skip if not enabled
+        if (data.enabled === false) {
+            console.log(`RTL-LTR Controller: Skipping disabled selector: ${selector}`);
+            // Remove any existing styles for this selector
+            window.rtlSettings.removeDirectionFromElements(selector);
+            return;
+        }
         
-        // Determine text alignment based on direction
-        const textAlign = data.direction === 'rtl' ? 'right' : 'left';
+        // Create a new style element
+        const styleId = `rtl-ltr-style-${btoa(selector)}`;
+        let styleBlock = document.getElementById(styleId);
         
-        // Create CSS rule with high specificity
-        let cssRule = `${selector}, ${selector}, ${selector} { `;
+        // Create new style block if it doesn't exist
+        if (!styleBlock) {
+            styleBlock = document.createElement('style');
+            styleBlock.id = styleId;
+            styleBlock.setAttribute('data-rtl-extension', 'true');
+        }
+        
+        // Build CSS rule
+        let cssRule = `${selector} { `;
         cssRule += `direction: ${data.direction} !important; `;
-        cssRule += `text-align: ${textAlign} !important; `;
         
-        // Add custom CSS if provided
-        if (data.customCSS) {
-            cssRule += `${data.customCSS} `;
+        // Add text alignment based on direction if not specified in custom CSS
+        const hasTextAlign = data.customCSS && data.customCSS.includes('text-align');
+        if (!hasTextAlign) {
+            cssRule += data.direction === 'rtl' 
+                ? 'text-align: right !important; '
+                : 'text-align: left !important; ';
         }
         
-        cssRule += '} ';
-        
-        // Add the CSS rule to the style element
-        if (state.styleElement) {
-            state.styleElement.textContent += cssRule;
-        }
-        
-        // Also apply inline styles as a backup for elements with high-specificity styles
-        elements.forEach(el => {
-            el.style.setProperty('direction', data.direction, 'important');
-            el.style.setProperty('text-align', textAlign, 'important');
-            
-            // Apply custom CSS inline if provided
-            if (data.customCSS) {
-                const cssProperties = data.customCSS.split(';');
-                cssProperties.forEach(prop => {
-                    const [name, value] = prop.split(':');
-                    if (name && value) {
-                        el.style.setProperty(name.trim(), value.trim(), 'important');
+        // Add custom CSS if provided and not empty
+        if (data.customCSS && data.customCSS.trim() !== '') {
+            // Ensure each property has !important
+            const customCssProperties = data.customCSS.split(';')
+                .filter(prop => prop.trim())
+                .map(prop => {
+                    const [key, value] = prop.split(':').map(s => s.trim());
+                    if (key && value) {
+                        // Add !important if not already there
+                        if (!value.includes('!important')) {
+                            return `${key}: ${value} !important`;
+                        }
+                        return `${key}: ${value}`;
                     }
-                });
+                    return '';
+                })
+                .filter(prop => prop)
+                .join('; ');
+            
+            if (customCssProperties) {
+                cssRule += customCssProperties + '; ';
+            }
+        }
+        
+        cssRule += ' }';
+        
+        console.log('Applying CSS rule:', cssRule);
+        
+        // Apply the CSS rule
+        styleBlock.textContent = cssRule;
+        document.head.appendChild(styleBlock);
+
+        // Add class and data attributes to elements and apply inline styles as backup
+        elements.forEach(element => {
+            // Store original direction if not already stored
+            if (!element.hasAttribute('data-original-direction')) {
+                element.setAttribute('data-original-direction', getComputedStyle(element).direction || 'ltr');
+            }
+            
+            // Add class for easier identification
+            element.classList.add('rtl-extension-modified');
+            element.setAttribute('data-rtl-selector', selector);
+            
+            // Apply inline styles as a backup for elements that might have higher specificity styles
+            if (data.direction) {
+                element.style.setProperty('direction', data.direction, 'important');
+                
+                // Apply text alignment based on direction if not specified in custom CSS
+                if (!hasTextAlign) {
+                    if (data.direction === 'rtl') {
+                        element.style.setProperty('text-align', 'right', 'important');
+                    } else if (data.direction === 'ltr') {
+                        element.style.setProperty('text-align', 'left', 'important');
+                    }
+                }
+            }
+            
+            // Apply custom CSS properties as inline styles
+            if (data.customCSS && data.customCSS.trim() !== '') {
+                try {
+                    data.customCSS.split(';')
+                        .filter(prop => prop.trim())
+                        .forEach(prop => {
+                            const [key, value] = prop.split(':').map(s => s.trim());
+                            if (key && value) {
+                                element.style.setProperty(key, value, 'important');
+                            }
+                        });
+                } catch (cssError) {
+                    console.error('Error applying inline custom CSS:', cssError);
+                }
             }
         });
+
+        // Show notification only for user-initiated changes
+        if (!window.suppressNotifications) {
+            window.rtlUI.showNotification(`${data.direction.toUpperCase()} applied to ${elements.length} elements`);
+        }
     } catch (error) {
         console.error('RTL-LTR Controller: Error applying direction', error);
     }
-}
+};
 
 /**
  * Remove direction and custom CSS from elements
+ * @param {string} selector - CSS selector to remove direction from
  */
-export function removeDirectionFromElements(selector) {
+window.rtlSettings.removeDirectionFromElements = function(selector) {
     try {
         const elements = document.querySelectorAll(selector);
         if (elements.length === 0) return;
         
         console.log(`RTL-LTR Controller: Removing direction from ${elements.length} elements matching ${selector}`);
         
-        // Remove inline styles
-        elements.forEach(el => {
-            el.style.removeProperty('direction');
-            el.style.removeProperty('text-align');
+        // Remove style element for this selector
+        const styleId = `rtl-ltr-style-${btoa(selector)}`;
+        const styleElement = document.getElementById(styleId);
+        if (styleElement) {
+            styleElement.remove();
+        }
+        
+        // Remove inline styles and classes from elements
+        elements.forEach(element => {
+            // Restore original direction if available
+            const originalDirection = element.getAttribute('data-original-direction');
+            if (originalDirection) {
+                element.style.setProperty('direction', originalDirection);
+            } else {
+                element.style.removeProperty('direction');
+            }
             
-            // Remove common RTL-related CSS properties
-            const rtlProperties = [
-                'text-align', 'float', 'margin-left', 'margin-right', 
-                'padding-left', 'padding-right', 'border-left', 'border-right'
-            ];
+            // Remove text alignment
+            element.style.removeProperty('text-align');
             
-            rtlProperties.forEach(prop => {
-                el.style.removeProperty(prop);
-            });
+            // Remove all custom CSS properties that were applied by the extension
+            // The safest approach is to remove the style attribute completely and rely on the original CSS
+            element.removeAttribute('style');
+            
+            // Remove class and data attribute
+            element.classList.remove('rtl-extension-modified');
+            element.removeAttribute('data-rtl-selector');
+            // Keep data-original-direction for future use
         });
+
+        if (!window.suppressNotifications) {
+            window.rtlUI.showNotification(`Direction removed from ${elements.length} elements`);
+        }
     } catch (error) {
         console.error('RTL-LTR Controller: Error removing direction', error);
     }
-}
+};
 
 /**
- * Toggle direction for a selector
+ * Toggle direction for selector
+ * @param {string} selector - CSS selector to toggle direction for
  */
-export function toggleDirection(selector, enabled) {
-    if (!state.domainSettings || !state.domainSettings.selectors || !state.domainSettings.selectors[selector]) {
-        console.error('RTL-LTR Controller: Cannot toggle direction, selector not found', selector);
-        return;
+window.rtlSettings.toggleDirection = function(selector) {
+    try {
+        // Get current direction
+        const element = document.querySelector(selector);
+        if (!element) return;
+        
+        const currentDirection = getComputedStyle(element).direction;
+        const newDirection = currentDirection === 'rtl' ? 'ltr' : 'rtl';
+        
+        console.log(`RTL-LTR Controller: Toggling direction from ${currentDirection} to ${newDirection} for ${selector}`);
+        
+        // Update settings with new direction
+        window.rtlSettings.updateSettings(selector, newDirection, '');
+    } catch (error) {
+        console.error('RTL-LTR Controller: Error toggling direction', error);
     }
-    
-    const data = state.domainSettings.selectors[selector];
-    
-    if (enabled) {
-        applyDirectionToElements(selector, data);
-    } else {
-        removeDirectionFromElements(selector);
-    }
-}
+};
 
 /**
  * Update settings for a selector
+ * @param {string} selector - CSS selector to update
+ * @param {string} direction - Text direction ('rtl' or 'ltr')
+ * @param {string} customCSS - Optional custom CSS to apply
+ * @param {boolean} enabled - Whether the setting is enabled (default: true)
  */
-export function updateSettings(selector, direction, customCSS) {
+window.rtlSettings.updateSettings = function(selector, direction, customCSS, enabled = true) {
     try {
-        if (!state.domainSettings) {
-            state.domainSettings = { selectors: {} };
-        }
+        // Get current domain
+        const domain = window.rtlSettings.getCurrentDomain();
         
-        if (!state.domainSettings.selectors) {
-            state.domainSettings.selectors = {};
-        }
-        
-        // Update or create the selector settings
-        state.domainSettings.selectors[selector] = {
-            direction: direction,
-            customCSS: customCSS,
-            lastUpdated: new Date().toISOString(),
-            enabled: true
-        };
-        
-        // Save the updated settings
-        chrome.storage.local.set({ [window.location.hostname]: state.domainSettings }, () => {
-            console.log('RTL-LTR Controller: Settings updated for', selector);
-            applyDirectionToElements(selector, state.domainSettings.selectors[selector]);
+        // Initialize domain settings if needed
+        chrome.storage.local.get(domain, function(items) {
+            const domainData = items[domain] || { selectors: {} };
+            
+            // Update selector settings
+            domainData.selectors[selector] = {
+                direction: direction,
+                customCSS: customCSS,
+                enabled: enabled !== false, // Ensure we handle undefined correctly
+                lastUpdated: new Date().toISOString()
+            };
+            
+            // Save updated settings
+            chrome.storage.local.set({ [domain]: domainData }, function() {
+                // Update local copy
+                window.rtlState.domainSettings = domainData;
+                
+                // Only apply settings if enabled
+                if (enabled !== false) {
+                    window.rtlSettings.applyDirectionToElements(selector, domainData.selectors[selector]);
+                } else {
+                    // Remove visual styles but keep the setting in storage
+                    window.rtlSettings.removeDirectionFromElements(selector);
+                }
+                
+                console.log('Settings updated for', selector, domainData.selectors[selector]);
+            });
         });
     } catch (error) {
-        console.error('RTL-LTR Controller: Error updating settings', error);
+        console.error('Error updating settings:', error);
     }
-}
+};
 
 /**
  * Remove direction for a selector
+ * @param {string} selector - CSS selector to remove direction from
  */
-export function removeDirection(selector) {
+window.rtlSettings.removeDirection = function(selector) {
     try {
-        removeDirectionFromElements(selector);
+        // Remove CSS from elements
+        window.rtlSettings.removeDirectionFromElements(selector);
         
-        if (state.domainSettings && state.domainSettings.selectors && state.domainSettings.selectors[selector]) {
-            delete state.domainSettings.selectors[selector];
+        // Update state
+        if (window.rtlState.domainSettings && window.rtlState.domainSettings.selectors) {
+            delete window.rtlState.domainSettings.selectors[selector];
             
-            // Save the updated settings
-            chrome.storage.local.set({ [window.location.hostname]: state.domainSettings }, () => {
-                console.log('RTL-LTR Controller: Direction removed for', selector);
+            // Save updated settings
+            const domain = window.rtlSettings.getCurrentDomain();
+            const settingsToSave = {};
+            settingsToSave[domain] = window.rtlState.domainSettings;
+            
+            chrome.storage.local.set(settingsToSave, () => {
+                if (chrome.runtime.lastError) {
+                    console.error('Error saving settings:', chrome.runtime.lastError);
+                } else {
+                    console.log('Settings saved successfully');
+                    window.rtlUI.showNotification('Direction removed');
+                }
             });
         }
     } catch (error) {
         console.error('RTL-LTR Controller: Error removing direction', error);
     }
-}
+};
 
 /**
  * Clear all settings for the current domain
  */
-export function clearAllSettings() {
+window.rtlSettings.clearAllSettings = function() {
     try {
-        if (state.styleElement) {
-            state.styleElement.textContent = '';
+        const domain = window.rtlSettings.getCurrentDomain();
+        
+        // Show confirmation first
+        if (confirm(`Are you sure you want to clear all RTL/LTR settings for ${domain}?`)) {
+            // Remove all style elements created by extension
+            document.querySelectorAll('[id^="rtl-ltr-style-"]').forEach(el => el.remove());
+            
+            // Reset all rtl-extension-modified elements
+            document.querySelectorAll('.rtl-extension-modified').forEach(element => {
+                // Restore original direction if available
+                const originalDirection = element.getAttribute('data-original-direction');
+                if (originalDirection) {
+                    element.style.direction = originalDirection;
+                } else {
+                    element.style.removeProperty('direction');
+                }
+                
+                // Remove text alignment
+                element.style.removeProperty('text-align');
+                
+                // Remove custom CSS properties
+                if (element.getAttribute('style')) {
+                    const style = element.getAttribute('style');
+                    const customCSSProperties = style.split(';')
+                        .filter(prop => !prop.includes('direction') && !prop.includes('text-align'))
+                        .join(';');
+                    
+                    if (customCSSProperties.trim()) {
+                        element.setAttribute('style', customCSSProperties);
+                    } else {
+                        element.removeAttribute('style');
+                    }
+                }
+                
+                // Remove class and data attributes
+                element.classList.remove('rtl-extension-modified');
+                element.removeAttribute('data-rtl-selector');
+                element.removeAttribute('data-original-direction');
+            });
+            
+            // Clear domain settings in state
+            window.rtlState.domainSettings = { selectors: {} };
+            
+            // Remove from storage
+            chrome.storage.local.remove(domain, () => {
+                if (chrome.runtime.lastError) {
+                    console.error('Error clearing settings:', chrome.runtime.lastError);
+                } else {
+                    console.log('All settings cleared for domain:', domain);
+                    window.rtlUI.showNotification('All settings cleared');
+                }
+            });
         }
-        
-        state.domainSettings = null;
-        
-        console.log('RTL-LTR Controller: All settings cleared');
     } catch (error) {
-        console.error('RTL-LTR Controller: Error clearing settings', error);
+        console.error('RTL-LTR Controller: Error clearing all settings', error);
     }
-}
+};

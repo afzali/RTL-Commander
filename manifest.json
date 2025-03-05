@@ -2,22 +2,29 @@
   "manifest_version": 3,
   "name": "RTL Commander",
   "version": "1.0",
-  "description": "Powerful RTL/LTR text direction controller for any webpage element",
-  "permissions": [
-    "contextMenus",
-    "storage",
-    "activeTab",
-    "scripting"
-  ],
+  "description": "Toggle RTL/LTR direction for websites",
+  "permissions": ["contextMenus", "storage", "activeTab"],
+  "host_permissions": ["<all_urls>"],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "js/background.js"
   },
-  "content_scripts": [{
-    "matches": ["<all_urls>"],
-    "js": ["content.js"],
-    "css": ["css/panel.css"],
-    "run_at": "document_start"
-  }],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["css/panel.css"],
+      "js": [
+        "js/content/state.js",
+        "js/content/settings.js",
+        "js/content/ui.js",
+        "js/content/observer.js",
+        "js/content/messaging.js",
+        "js/content/initialization.js",
+        "js/content/debug.js",
+        "js/content.js"
+      ],
+      "run_at": "document_end"
+    }
+  ],
   "action": {
     "default_popup": "popup/popup.html",
     "default_icon": {

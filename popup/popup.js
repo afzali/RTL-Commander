@@ -61,41 +61,90 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('cancelEdit').addEventListener('click', closeEditDialog);
     
     document.getElementById('saveEdit').addEventListener('click', async () => {
-        if (!currentSelector || !currentDomain) return;
+        if (!currentDomain) return;
 
+        // Get updated values from form
+        const newSelector = document.getElementById('editSelector').value;
         const direction = document.getElementById('editDirection').value;
         const customCSS = document.getElementById('editCustomCSS').value;
 
+        // Validate selector is not empty
+        if (!newSelector || newSelector.trim() === '') {
+            alert('Selector cannot be empty');
+            return;
+        }
+
         chrome.storage.local.get(currentDomain, (items) => {
-            const domainData = items[currentDomain];
-            if (domainData && domainData.selectors && domainData.selectors[currentSelector]) {
-                // Update settings
-                domainData.selectors[currentSelector].direction = direction;
-                domainData.selectors[currentSelector].customCSS = customCSS;
-                domainData.selectors[currentSelector].lastUpdated = new Date().toISOString();
-
-                chrome.storage.local.set({ [currentDomain]: domainData }, () => {
-                    // Update the page if we're editing the current domain
-                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                        const url = new URL(tabs[0].url);
-                        if (url.hostname === currentDomain) {
-                            chrome.tabs.sendMessage(tabs[0].id, {
-                                action: "updateSettings",
-                                selector: currentSelector,
-                                direction: direction,
-                                customCSS: customCSS
-                            });
-                        }
-                    });
-
-                    // Close dialog and refresh lists
-                    closeEditDialog();
-                    loadSavedElements();
-                    loadAllDomains();
-                });
+            const domainData = items[currentDomain] || { selectors: {} };
+            
+            // Check if selector was changed
+            const selectorChanged = currentSelector !== newSelector;
+            
+            if (selectorChanged && domainData.selectors[currentSelector]) {
+                // If selector changed, copy settings to new selector and remove old one
+                domainData.selectors[newSelector] = {
+                    direction: direction,
+                    customCSS: customCSS,
+                    enabled: domainData.selectors[currentSelector].enabled !== false,
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                // Remove old selector
+                delete domainData.selectors[currentSelector];
+            } else {
+                // Update existing selector settings
+                domainData.selectors[newSelector] = {
+                    direction: direction,
+                    customCSS: customCSS,
+                    enabled: domainData.selectors[newSelector]?.enabled !== false,
+                    lastUpdated: new Date().toISOString()
+                };
             }
+
+            chrome.storage.local.set({ [currentDomain]: domainData }, () => {
+                // Update the page if we're editing the current domain
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    const url = new URL(tabs[0].url);
+                    if (url.hostname === currentDomain) {
+                        // If selector changed, remove the old one first
+                        if (selectorChanged) {
+                            chrome.tabs.sendMessage(tabs[0].id, {
+                                action: "removeDirection",
+                                selector: currentSelector
+                            }, () => {
+                                // Apply the new selector settings
+                                applySettingsToTab(tabs[0].id, newSelector, direction, customCSS);
+                            });
+                        } else {
+                            // Just update with the new settings
+                            applySettingsToTab(tabs[0].id, newSelector, direction, customCSS);
+                        }
+                    }
+                });
+
+                // Close dialog and refresh lists
+                closeEditDialog();
+                loadSavedElements();
+                loadAllDomains();
+            });
         });
     });
+    
+    // Helper function to apply settings to a tab and force immediate update
+    function applySettingsToTab(tabId, selector, direction, customCSS) {
+        chrome.tabs.sendMessage(tabId, {
+            action: "updateSettings",
+            selector: selector,
+            direction: direction,
+            customCSS: customCSS,
+            enabled: true
+        }, () => {
+            // Force immediate reapply
+            chrome.tabs.sendMessage(tabId, {
+                action: "reapplySettings"
+            });
+        });
+    }
 
     // Close dialog when clicking overlay
     overlay.addEventListener('click', closeEditDialog);
@@ -234,6 +283,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     chrome.tabs.sendMessage(tabs[0].id, {
                                         action: "removeDirection",
                                         selector: selector
+                                    }, () => {
+                                        // Force reapply all settings to ensure UI is refreshed
+                                        setTimeout(() => {
+                                            chrome.tabs.sendMessage(tabs[0].id, {
+                                                action: "reapplySettings"
+                                            });
+                                        }, 100);
                                     });
                                 });
                                 
@@ -257,17 +313,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                             
                             // Update the page
                             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                                // First send the specific action
                                 chrome.tabs.sendMessage(tabs[0].id, {
-                                    action: toggleInput.checked ? "updateSettings" : "removeDirection",
+                                    action: "updateSettings",
                                     selector: selector,
                                     direction: data.direction,
-                                    customCSS: data.customCSS || ''
+                                    customCSS: data.customCSS || '',
+                                    enabled: toggleInput.checked
+                                }, () => {
+                                    // Then force a reapply of all settings to ensure UI is refreshed
+                                    setTimeout(() => {
+                                        chrome.tabs.sendMessage(tabs[0].id, {
+                                            action: "reapplySettings"
+                                        });
+                                    }, 100);
                                 });
                             });
                             
                             // Save updated settings
                             chrome.storage.local.set({ [domain]: domainData }, () => {
-                                console.log(`Toggle ${selector} to ${toggleInput.checked}`);
+                                console.log(`Toggle ${selector} to ${toggleInput.checked ? 'enabled' : 'disabled'}`);
                             });
                         }
                     });
@@ -424,11 +489,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (confirm('Are you sure you want to delete all settings for the current domain?')) {
             const domain = await getCurrentTabDomain();
             chrome.storage.local.remove(domain, () => {
+                // Notify content script to clear settings
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     chrome.tabs.sendMessage(tabs[0].id, {
-                        action: "settingsCleared"
+                        action: "confirmClearSettings"
+                    }, () => {
+                        // Force reapply (which will essentially clear everything)
+                        setTimeout(() => {
+                            chrome.tabs.sendMessage(tabs[0].id, {
+                                action: "reapplySettings"
+                            });
+                        }, 100);
                     });
                 });
+                
+                // Refresh the popup
                 loadSavedElements();
                 loadAllDomains();
             });

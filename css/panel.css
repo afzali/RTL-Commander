@@ -3,173 +3,123 @@
  */
 
 /* Panel Container */
-#rtl-ltr-advanced-panel {
+.rtl-ltr-panel {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     background: white;
-    padding: 24px;
-    border-radius: 12px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     z-index: 999999;
-    display: none;
-    min-width: 420px;
-    max-width: 90vw;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    animation: panelFadeIn 0.2s ease-out;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    width: 400px;
+    max-width: 90%;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Panel Header */
-.panel-header {
-    font-size: 18px;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #eaeaea;
+.rtl-ltr-panel-header {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
 }
 
-.panel-header::before {
-    content: "⇄";
+.rtl-ltr-panel-header h2 {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.rtl-ltr-panel-header button {
+    background: none;
+    border: none;
     font-size: 20px;
-    color: #4285f4;
+    cursor: pointer;
+    color: #999;
+}
+
+.rtl-ltr-panel-header button:hover {
+    color: #333;
 }
 
 /* Panel Content */
-.panel-content {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+.rtl-ltr-panel-content {
+    margin-bottom: 15px;
 }
 
-/* Input Groups */
-.input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+.rtl-ltr-panel-row {
+    margin-bottom: 15px;
 }
 
-.input-group label {
+.rtl-ltr-panel-row label {
+    display: block;
+    margin-bottom: 5px;
     font-size: 14px;
-    font-weight: 500;
-    color: #4a4a4a;
-}
-
-.input-group input {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #dcdcdc;
-    border-radius: 8px;
-    font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-    font-size: 14px;
-    line-height: 1.4;
-    color: #333;
-    transition: all 0.2s ease;
-}
-
-.input-group input:hover {
-    border-color: #b3b3b3;
-}
-
-.input-group input:focus {
-    outline: none;
-    border-color: #4285f4;
-    box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
-}
-
-.input-group .hint {
-    font-size: 12px;
     color: #666;
-    margin-top: 4px;
 }
 
-/* Domain Info */
-.domain-info {
-    margin-top: 4px;
-    padding: 12px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border: 1px solid #eaeaea;
+.rtl-ltr-panel-row input,
+.rtl-ltr-panel-row select,
+.rtl-ltr-panel-row textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
 }
 
-.domain-info small {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    line-height: 1.4;
-    color: #5f6368;
+.rtl-ltr-panel-row textarea {
+    height: 80px;
+    resize: vertical;
 }
 
-.domain-info small::before {
-    content: "🌐";
-    font-size: 14px;
-}
-
-/* Buttons */
-.button-group {
+/* Panel Buttons */
+.rtl-ltr-panel-buttons {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
-    margin-top: 8px;
+    gap: 10px;
 }
 
-.button-group button {
-    padding: 10px 16px;
+.rtl-ltr-panel-buttons button {
+    padding: 8px 12px;
     border: none;
-    border-radius: 8px;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s ease;
+    background: #f0f0f0;
+    color: #333;
 }
 
-#apply-toggle {
+.rtl-ltr-panel-buttons button:first-child {
     background: #4285f4;
     color: white;
 }
 
-#apply-toggle:hover {
-    background: #3367d6;
-    box-shadow: 0 2px 6px rgba(66, 133, 244, 0.2);
-}
-
-#cancel-toggle {
-    background: #f1f3f4;
-    color: #3c4043;
-}
-
-#cancel-toggle:hover {
-    background: #e8eaed;
+.rtl-ltr-panel-buttons button:hover {
+    opacity: 0.9;
 }
 
 /* Notification */
 .rtl-ltr-notification {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
-    background: #323232;
+    bottom: 20px;
+    right: 20px;
+    background: #4285f4;
     color: white;
-    padding: 16px 24px;
-    border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 14px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    animation: notificationSlideIn 0.3s ease-out;
+    padding: 10px 15px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     z-index: 999999;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    animation: fadeIn 0.3s ease-out;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.rtl-ltr-notification::before {
-    content: "✓";
-    font-size: 16px;
-    color: #8ab4f8;
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Element Direction Styles */
@@ -289,7 +239,6 @@
 #rtl-ltr-selector-panel button:hover {
     background: #3367d6;
 }
-
 
 textarea, input {
     background: white;
