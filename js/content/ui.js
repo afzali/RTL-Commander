@@ -162,6 +162,11 @@ window.rtlUI.showAdvancedPanel = function(element) {
             // Update settings
             window.rtlSettings.updateSettings(updatedSelector, direction, customCSS);
             
+            // Force an immediate reapply of all settings
+            setTimeout(() => {
+                window.rtlSettings.applyAllSettings();
+            }, 50);
+            
             // Close panel
             window.rtlUI.closeAdvancedPanel();
         });

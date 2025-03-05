@@ -114,8 +114,18 @@ window.rtlMessaging.handleMessage = function(message, sender, sendResponse) {
                 break;
                 
             case 'reapplySettings':
-                // Force reapply all settings
+                console.log('RTL-LTR Controller: Reapplying all settings');
+                
+                // Clear all existing styles first to ensure clean slate
+                document.querySelectorAll('style[data-rtl-extension="true"]').forEach(style => {
+                    style.remove();
+                });
+                
+                // Reapply all settings
                 window.rtlSettings.applyAllSettings();
+                
+                // Send success response
+                response = { success: true };
                 break;
                 
             default:

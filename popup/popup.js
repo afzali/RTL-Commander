@@ -140,9 +140,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             enabled: true
         }, () => {
             // Force immediate reapply
-            chrome.tabs.sendMessage(tabId, {
-                action: "reapplySettings"
-            });
+            setTimeout(() => {
+                chrome.tabs.sendMessage(tabId, {
+                    action: "reapplySettings"
+                });
+            }, 50);
         });
     }
 

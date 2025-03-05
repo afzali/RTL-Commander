@@ -15,28 +15,63 @@ window.rtlSettings.getCurrentDomain = function() {
 };
 
 /**
- * Apply all saved settings
+ * Apply all saved settings for this domain
  */
 window.rtlSettings.applyAllSettings = function() {
     if (!window.rtlState.domainSettings || !window.rtlState.domainSettings.selectors) return;
+    
+    console.log('RTL-LTR Controller: Applying all saved settings');
     
     // First clean up existing styles
     window.rtlSettings.cleanupStyles();
     
     // Apply each selector's settings
     Object.entries(window.rtlState.domainSettings.selectors).forEach(([selector, data]) => {
-        if (data.enabled !== false) {
+        // Only apply if selector and data exist
+        if (selector && data) {
+            console.log(`RTL-LTR Controller: Applying settings for ${selector}, enabled: ${data.enabled !== false}`);
             window.rtlSettings.applyDirectionToElements(selector, data);
         }
     });
+    
+    console.log('RTL-LTR Controller: Finished applying all settings');
 };
 
 /**
- * Clean up existing styles
+ * Clean up all styles added by the extension
  */
 window.rtlSettings.cleanupStyles = function() {
-    if (window.rtlState.styleElement) {
-        window.rtlState.styleElement.textContent = '';
+    try {
+        // Remove all style elements added by the extension
+        document.querySelectorAll('style[data-rtl-extension="true"]').forEach(style => {
+            style.remove();
+        });
+        
+        // Reset all elements that were modified
+        document.querySelectorAll('.rtl-extension-modified').forEach(element => {
+            // Restore original direction if available
+            const originalDirection = element.getAttribute('data-original-direction');
+            if (originalDirection) {
+                element.style.direction = originalDirection;
+            } else {
+                element.style.removeProperty('direction');
+            }
+            
+            // Remove text alignment
+            element.style.removeProperty('text-align');
+            
+            // Remove all styles
+            element.removeAttribute('style');
+            
+            // Remove class and data attribute
+            element.classList.remove('rtl-extension-modified');
+            element.removeAttribute('data-rtl-selector');
+            // Keep data-original-direction for future use
+        });
+        
+        console.log('RTL-LTR Controller: Cleaned up all styles');
+    } catch (error) {
+        console.error('RTL-LTR Controller: Error cleaning up styles', error);
     }
 };
 
