@@ -21,6 +21,16 @@ window.rtlState = {
         selectors: {}
     },
     
-    // Debug mode
-    debug: true
+    // Debug configuration
+    debug: false,           // Basic debug logging
+    verboseDebug: false,    // More detailed debug logging
+    
+    // Debug flags for specific components
+    debugComponents: {
+        initialization: false,
+        settings: false,
+        observer: false,
+        ui: false,
+        messaging: false
+    }
 };

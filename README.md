@@ -32,6 +32,13 @@ A powerful Chrome extension for managing RTL (Right-to-Left) and LTR (Left-to-Ri
 
 ## Recent Updates
 
+### Version 1.3
+- **Added**: Comprehensive debugging system with configurable settings
+- **Enhanced**: Improved Vazir font application with user-friendly dialog
+- **Added**: Debug console utilities for developers
+- **Fixed**: Better font application to RTL elements for improved rendering
+- **Improved**: More robust error handling and state logging
+
 ### Version 1.2
 - **Added**: New "All Domains" tab that lets you view and manage settings from all websites in one place
 - **Fixed**: Toggle functionality now correctly disables settings without deleting them
@@ -74,6 +81,15 @@ A powerful Chrome extension for managing RTL (Right-to-Left) and LTR (Left-to-Ri
 3. Choose how to apply the font:
    - "As Default Font" to apply it to all elements
    - "For Advanced CSS" to use it in custom CSS settings
+   - "Test Font" to preview the font with a sample text
+
+### Developer Features
+1. **Debugging System**:
+   - Open the browser console and type `rtlUtils.help()` to see available commands
+   - Enable debug mode with `rtlUtils.setDebugMode(true)` 
+   - Enable verbose logging with `rtlUtils.setDebugMode(true, true)`
+   - Set component-specific debugging with `rtlUtils.setDebugComponents()`
+   - View current state with `debugRTL()` or `rtlDebug.logState()`
 
 ## Installation
 
@@ -85,6 +101,40 @@ A powerful Chrome extension for managing RTL (Right-to-Left) and LTR (Left-to-Ri
 ## Contributing
 
 Feel free to submit issues and enhancement requests!
+
+### For Developers
+The extension includes a comprehensive debugging system to help with development and troubleshooting:
+
+1. **Debug Console Commands**:
+   ```javascript
+   // Enable basic debugging
+   rtlUtils.setDebugMode(true);
+   
+   // Enable verbose debugging
+   rtlUtils.setDebugMode(true, true);
+   
+   // Debug specific components
+   rtlUtils.setDebugComponents({ 
+     ui: true,
+     settings: true,
+     observer: false,
+     messaging: false,
+     initialization: true
+   });
+   
+   // View current debug settings
+   rtlUtils.getDebugSettings();
+   
+   // View current extension state
+   rtlDebug.logState();
+   // or use the shorthand
+   debugRTL();
+   ```
+
+2. **Debug Configuration**:
+   - Debug settings are stored in the global state
+   - Default settings have debugging disabled for production use
+   - The debug module provides structured logging with clear prefixes
 
 ## License
 

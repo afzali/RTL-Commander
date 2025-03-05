@@ -11,15 +11,22 @@ window.rtlInitialization = {};
  */
 window.rtlInitialization.initialize = function() {
     try {
+        // Initialize debug settings first
+        window.rtlDebug.initialize({
+            enabled: window.rtlState.debug || false,
+            verboseMode: window.rtlState.verboseDebug || false,
+            logToConsole: true
+        });
+        
         // Skip initialization if already done
         if (window.rtlState.initialized) {
-            console.log('RTL-LTR Controller: Already initialized');
+            window.rtlDebug.log('Already initialized');
             return;
         }
         
         // Increase attempt count
         window.rtlState.initializationAttempts++;
-        console.log(`RTL-LTR Controller: Initializing (attempt ${window.rtlState.initializationAttempts})`);
+        window.rtlDebug.log(`Initializing (attempt ${window.rtlState.initializationAttempts})`);
         
         // Set up message handlers
         window.rtlMessaging.setupMessageHandlers();
@@ -39,7 +46,7 @@ window.rtlInitialization.initialize = function() {
             
             // Mark initialization as complete
             window.rtlState.initialized = true;
-            console.log('RTL-LTR Controller: Initialization complete');
+            window.rtlDebug.log('Initialization complete');
             
             // Apply all settings to page
             window.rtlSettings.applyAllSettings();
@@ -48,7 +55,7 @@ window.rtlInitialization.initialize = function() {
         // Set up SPA navigation detection
         window.rtlInitialization.setupNavigationHandlers();
     } catch (error) {
-        console.error('RTL-LTR Controller: Error during initialization', error);
+        window.rtlDebug.error('Error during initialization', error);
     }
 };
 
@@ -78,14 +85,14 @@ window.rtlInitialization.setupNavigationHandlers = function() {
         window.dispatchEvent(new Event('replacestate'));
     };
     
-    console.log('RTL-LTR Controller: Navigation handlers set up');
+    window.rtlDebug.log('Navigation handlers set up');
 };
 
 /**
  * Handle navigation events in SPAs
  */
 window.rtlInitialization.handleNavigation = function() {
-    console.log('RTL-LTR Controller: Navigation detected, reapplying settings');
+    window.rtlDebug.log('Navigation detected, reapplying settings');
     
     // Wait a bit for the DOM to update
     setTimeout(() => {
@@ -104,7 +111,7 @@ window.rtlInitialization.loadSavedSettings = function(callback) {
         
         chrome.storage.local.get(domain, result => {
             if (chrome.runtime.lastError) {
-                console.error('RTL-LTR Controller: Error loading settings', chrome.runtime.lastError);
+                window.rtlDebug.error('Error loading settings', chrome.runtime.lastError);
                 if (callback) callback();
                 return;
             }
@@ -112,17 +119,17 @@ window.rtlInitialization.loadSavedSettings = function(callback) {
             // Process loaded settings
             if (result && result[domain]) {
                 window.rtlState.domainSettings = result[domain];
-                console.log('RTL-LTR Controller: Loaded settings for domain', domain, window.rtlState.domainSettings);
+                window.rtlDebug.log('Loaded settings for domain', domain, window.rtlState.domainSettings);
             } else {
                 // Create empty settings object if none exists
                 window.rtlState.domainSettings = { selectors: {} };
-                console.log('RTL-LTR Controller: No settings found for domain', domain);
+                window.rtlDebug.log('No settings found for domain', domain);
             }
             
             if (callback) callback();
         });
     } catch (error) {
-        console.error('RTL-LTR Controller: Error loading saved settings', error);
+        window.rtlDebug.error('Error loading saved settings', error);
         if (callback) callback();
     }
 };

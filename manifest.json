@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RTL Commander",
-  "version": "1.0",
+  "version": "1.3",
   "description": "Toggle RTL/LTR direction for websites",
   "permissions": ["contextMenus", "storage", "activeTab"],
   "host_permissions": ["<all_urls>"],
@@ -20,6 +20,7 @@
         "js/content/messaging.js",
         "js/content/initialization.js",
         "js/content/debug.js",
+        "js/content/debug-utils.js",
         "js/content.js"
       ],
       "run_at": "document_end"
