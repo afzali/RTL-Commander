@@ -223,20 +223,229 @@ window.rtlUI.toggleVazirFont = function() {
             return;
         }
         
-        // Add Vazir font using CDN
-        const fontStyle = document.createElement('style');
-        fontStyle.id = fontStyleId;
-        fontStyle.textContent = `
-            @import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css');
-            
-            [dir="rtl"], [dir="rtl"] * {
-                font-family: 'Vazir', Tahoma, Arial, sans-serif !important;
-            }
-        `;
-        
-        document.head.appendChild(fontStyle);
-        window.rtlUI.showNotification('Vazir font added for RTL text');
+        // Create and show the font options dialog
+        window.rtlUI.showFontOptionsDialog();
     } catch (error) {
         console.error('RTL-LTR Controller: Error toggling Vazir font', error);
     }
 };
+
+/**
+ * Show a dialog with Vazir font application options
+ */
+window.rtlUI.showFontOptionsDialog = function() {
+    try {
+        // Close any existing dialogs
+        window.rtlUI.closeAdvancedPanel();
+        const existingDialog = document.getElementById('rtl-font-options-dialog');
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+        
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'rtl-ltr-overlay';
+        overlay.id = 'rtl-font-overlay';
+        document.body.appendChild(overlay);
+        
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'rtl-ltr-panel';
+        dialog.id = 'rtl-font-options-dialog';
+        
+        dialog.innerHTML = `
+            <div class="rtl-ltr-panel-header">
+                <h2>Vazir Font Options</h2>
+                <button type="button" id="close-font-dialog">×</button>
+            </div>
+            <div class="rtl-ltr-panel-content">
+                <p style="margin-bottom: 16px;">How would you like to apply Vazir font?</p>
+                
+                <div class="rtl-ltr-panel-buttons" style="display: flex; flex-direction: column; gap: 10px;">
+                    <button type="button" id="apply-to-all" class="rtl-ltr-button">
+                        Apply to all RTL elements
+                    </button>
+                    <button type="button" id="add-for-css" class="rtl-ltr-button">
+                        Add font for custom CSS use only
+                    </button>
+                    <button type="button" id="cancel-font" class="rtl-ltr-button rtl-ltr-button-secondary">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(dialog);
+        
+        // Add event listeners
+        document.getElementById('close-font-dialog').addEventListener('click', window.rtlUI.closeFontDialog);
+        document.getElementById('cancel-font').addEventListener('click', window.rtlUI.closeFontDialog);
+        overlay.addEventListener('click', window.rtlUI.closeFontDialog);
+        
+        // Apply to all RTL elements
+        document.getElementById('apply-to-all').addEventListener('click', () => {
+            window.rtlUI.applyVazirFont(true);
+            window.rtlUI.closeFontDialog();
+        });
+        
+        // Add for custom CSS use
+        document.getElementById('add-for-css').addEventListener('click', () => {
+            window.rtlUI.applyVazirFont(false);
+            window.rtlUI.closeFontDialog();
+        });
+        
+       
+    } catch (error) {
+        console.error('RTL-LTR Controller: Error showing font options dialog', error);
+    }
+};
+
+/**
+ * Close the font options dialog
+ */
+window.rtlUI.closeFontDialog = function() {
+    try {
+        const dialog = document.getElementById('rtl-font-options-dialog');
+        if (dialog) {
+            dialog.remove();
+        }
+        
+        const overlay = document.getElementById('rtl-font-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    } catch (error) {
+        console.error('RTL-LTR Controller: Error closing font dialog', error);
+    }
+};
+
+/**
+ * Apply Vazir font with specified option
+ * @param {boolean} applyToAll - Whether to apply to all RTL elements or just add for custom CSS
+ */
+window.rtlUI.applyVazirFont = function(applyToAll) {
+    try {
+        const fontStyleId = 'rtl-vazir-font';
+        
+        // Remove any existing Vazir font styling
+        const existingStyle = document.getElementById(fontStyleId);
+        if (existingStyle) {
+            existingStyle.remove();
+        }
+        
+        // Add Vazir font using CDN
+        const fontStyle = document.createElement('style');
+        fontStyle.id = fontStyleId;
+        fontStyle.setAttribute('data-rtl-extension', 'true');
+        
+        if (applyToAll) {
+            // Apply to all RTL elements with high specificity
+            fontStyle.textContent = `
+                @font-face {
+                    font-family: 'Vazir';
+                    src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/Vazir.woff2') format('woff2'),
+                         url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/Vazir.woff') format('woff'),
+                         url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/Vazir.ttf') format('truetype');
+                    font-weight: normal;
+                    font-style: normal;
+                }
+                
+                * {
+                    font-family: 'Vazir', Tahoma, Arial, sans-serif !important;
+                }
+                
+                .rtl-vazir-applied {
+                    font-family: 'Vazir', Tahoma, Arial, sans-serif !important;
+                }
+            `;
+            
+            // Also directly apply to elements using JavaScript for better coverage
+            const rtlElements = document.querySelectorAll('[dir="rtl"]');
+            console.log('Found RTL elements:', rtlElements.length);
+            
+            rtlElements.forEach(el => {
+                el.style.fontFamily = 'Vazir, Tahoma, Arial, sans-serif';
+                el.classList.add('rtl-vazir-applied');
+                
+                // Also apply to all children
+                el.querySelectorAll('*').forEach(child => {
+                    child.style.fontFamily = 'Vazir, Tahoma, Arial, sans-serif';
+                    child.classList.add('rtl-vazir-applied');
+                });
+            });
+            
+            // If no RTL elements found, apply to html and body as fallback
+            if (rtlElements.length === 0) {
+                document.documentElement.style.fontFamily = 'Vazir, Tahoma, Arial, sans-serif';
+                document.body.style.fontFamily = 'Vazir, Tahoma, Arial, sans-serif';
+                document.documentElement.classList.add('rtl-vazir-applied');
+                document.body.classList.add('rtl-vazir-applied');
+            }
+            
+            window.rtlUI.showNotification('Vazir font added and applied to RTL elements');
+        } else {
+            // Just add the font without applying it
+            fontStyle.textContent = `
+                @font-face {
+                    font-family: 'Vazir';
+                    src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/Vazir.woff2') format('woff2'),
+                         url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/Vazir.woff') format('woff'),
+                         url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/Vazir.ttf') format('truetype');
+                    font-weight: normal;
+                    font-style: normal;
+                }
+                
+                /* Font is loaded but not automatically applied */
+                .rtl-vazir-custom-apply {
+                    font-family: 'Vazir', Tahoma, Arial, sans-serif;
+                }
+            `;
+            window.rtlUI.showNotification('Vazir font added (available for use in custom CSS)');
+            
+            
+        }
+        
+        document.head.appendChild(fontStyle);
+        
+        // Add global toggle to switch all text to Vazir if needed
+        if (applyToAll) {
+            const toggleBtn = document.createElement('button');
+            toggleBtn.textContent = 'Toggle All Vazir';
+            toggleBtn.style.position = 'fixed';
+            toggleBtn.style.bottom = '10px';
+            toggleBtn.style.right = '10px';
+            toggleBtn.style.zIndex = '9999';
+            toggleBtn.style.padding = '5px 10px';
+            toggleBtn.style.borderRadius = '4px';
+            toggleBtn.style.background = '#3498db';
+            toggleBtn.style.color = 'white';
+            toggleBtn.style.border = 'none';
+            toggleBtn.style.cursor = 'pointer';
+            toggleBtn.id = 'rtl-vazir-toggle';
+            
+            toggleBtn.addEventListener('click', function() {
+                const allElements = document.querySelectorAll('*');
+                allElements.forEach(el => {
+                    if (!el.classList.contains('rtl-vazir-applied')) {
+                        el.style.fontFamily = 'Vazir, Tahoma, Arial, sans-serif';
+                        el.classList.add('rtl-vazir-applied');
+                    } else {
+                        el.style.removeProperty('font-family');
+                        el.classList.remove('rtl-vazir-applied');
+                    }
+                });
+            });
+            
+            document.body.appendChild(toggleBtn);
+            
+            // Remove the button after 5 seconds
+            setTimeout(() => {
+                const btn = document.getElementById('rtl-vazir-toggle');
+                if (btn) btn.remove();
+            }, 5000);
+        }
+    } catch (error) {
+        console.error('RTL-LTR Controller: Error applying Vazir font', error);
+    }
+};
+

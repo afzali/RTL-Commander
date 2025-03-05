@@ -28,8 +28,18 @@ A powerful Chrome extension for managing RTL (Right-to-Left) and LTR (Left-to-Ri
 - Confirmation dialogs for important actions
 - Visual feedback through notifications
 - Edit dialog for modifying saved settings
+- All Domains tab to manage settings across all websites
 
 ## Recent Updates
+
+### Version 1.2
+- **Added**: New "All Domains" tab that lets you view and manage settings from all websites in one place
+- **Fixed**: Toggle functionality now correctly disables settings without deleting them
+- **Fixed**: Changes made in the advanced panel now apply immediately without requiring a page refresh
+- **Improved**: Better handling of empty or disabled CSS settings
+- **Enhanced**: Support for Single Page Applications (SPAs) with automatic style reapplication on navigation
+- **Updated**: All notifications and messages are now in English
+- **Optimized**: Codebase cleanup and performance improvements
 
 ### Version 1.1
 - **Fixed**: RTL settings now correctly apply on page load without requiring manual toggling
@@ -52,6 +62,11 @@ A powerful Chrome extension for managing RTL (Right-to-Left) and LTR (Left-to-Ri
 2. Use the context menu to:
    - Toggle direction for the entire page
    - Add Vazir font (with options for application mode)
+3. Use the "All Domains" tab to:
+   - View settings from all websites
+   - Edit settings for any domain
+   - Delete individual settings from any domain
+   - Clear all settings across all domains with a single button
 
 ### Managing Font Settings
 1. Right-click anywhere on the page
@@ -77,7 +92,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-If you encounter any problems or have suggestions, please [open an issue](https://github.com/[username]/RTL-LTR-Controller/issues) on GitHub.
+If you encounter any problems or have suggestions, please [open an issue](https://github.com/[username]/RTL-Commander/issues) on GitHub.
 
 ## Authors
 
